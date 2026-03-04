@@ -1,7 +1,5 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -13,12 +11,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, FlaskConical, Save, X } from "lucide-react";
+import { ArrowLeft, FlaskConical, Save } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRole } from "../contexts/RoleContext";
-import { DUMMY_USERS, SAMPLE_INTAKES, TEST_SAMPLES } from "../lib/mockData";
+import { DUMMY_USERS, SAMPLE_INTAKES } from "../lib/mockData";
 
 const SAMPLE_TYPES = [
   "API",
@@ -56,7 +54,6 @@ export function SampleIntake() {
     dateOfReceipt: new Date().toISOString().split("T")[0],
     numberOfUnits: 1,
     specialHandling: "",
-    requestedTests: [] as string[],
     assignToSectionInCharge: "",
   });
   const [submitting, setSubmitting] = useState(false);
@@ -78,8 +75,6 @@ export function SampleIntake() {
     if (!form.physicalForm) e.physicalForm = "Required";
     if (!form.dateOfReceipt) e.dateOfReceipt = "Required";
     if (form.numberOfUnits < 1) e.numberOfUnits = "Must be at least 1";
-    if (form.requestedTests.length === 0)
-      e.requestedTests = "Select at least one test";
     if (!form.assignToSectionInCharge) e.assignToSectionInCharge = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -103,15 +98,6 @@ export function SampleIntake() {
       description: "Status: Intake — Pending eligibility check",
     });
     navigate({ to: "/" });
-  };
-
-  const toggleTest = (testName: string) => {
-    setForm((prev) => ({
-      ...prev,
-      requestedTests: prev.requestedTests.includes(testName)
-        ? prev.requestedTests.filter((t) => t !== testName)
-        : [...prev.requestedTests, testName],
-    }));
   };
 
   const field = (key: string) => ({
@@ -330,60 +316,6 @@ export function SampleIntake() {
                 {...field("specialHandling")}
               />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Requested Tests */}
-        <Card className="lims-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-foreground">
-              Requested Tests <span className="text-destructive">*</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {TEST_SAMPLES.map((test) => (
-                <label
-                  key={test.id}
-                  htmlFor={`test-${test.id}`}
-                  className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    form.requestedTests.includes(test.testName)
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50 hover:bg-muted/30"
-                  }`}
-                >
-                  <Checkbox
-                    id={`test-${test.id}`}
-                    checked={form.requestedTests.includes(test.testName)}
-                    onCheckedChange={() => toggleTest(test.testName)}
-                    className="mt-0.5"
-                  />
-                  <div>
-                    <p className="text-sm font-medium">{test.testName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {test.testType} · {test.noOfDays}d
-                    </p>
-                  </div>
-                </label>
-              ))}
-            </div>
-            {errors.requestedTests && (
-              <p className="text-xs text-destructive mt-2">
-                {errors.requestedTests}
-              </p>
-            )}
-            {form.requestedTests.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {form.requestedTests.map((t) => (
-                  <Badge key={t} variant="secondary" className="gap-1 text-xs">
-                    {t}
-                    <button type="button" onClick={() => toggleTest(t)}>
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
           </CardContent>
         </Card>
 

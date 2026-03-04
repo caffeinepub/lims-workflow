@@ -66,7 +66,7 @@ export interface SampleIntakeRecord {
   dateOfReceipt: string;
   numberOfUnits: number;
   specialHandling: string;
-  requestedTests: string[];
+  requestedTests?: string[];
   assignToSectionInCharge: string;
   status: WorkflowStage;
   createdAt: string;
@@ -1371,6 +1371,90 @@ export const TEST_SPECS: Record<string, TestSpecRow[]> = {
       qaNotes: "Use Apparatus II at 50 rpm",
       assignedAnalyst: "user-006",
       targetSla: "2026-02-10",
+    },
+  ],
+  "SI-2026-004": [
+    {
+      id: "ts-r-007",
+      parameter: "Sterility",
+      acceptanceCriteria: "No growth",
+      methodSop: "SOP-STR-001",
+      referenceStandard: "Ph. Eur. 2.6.1",
+      qaNotes: "Conduct under LAF hood",
+      assignedAnalyst: "user-006",
+      targetSla: "2026-02-18",
+    },
+    {
+      id: "ts-r-008",
+      parameter: "Microbial Limit Test",
+      acceptanceCriteria: "NMT 100 CFU/mL",
+      methodSop: "SOP-MLT-002",
+      referenceStandard: "N/A",
+      qaNotes: "Incubate at 30-35°C for 5 days",
+      assignedAnalyst: "user-004",
+      targetSla: "2026-02-20",
+    },
+    {
+      id: "ts-r-009",
+      parameter: "pH",
+      acceptanceCriteria: "6.5 – 7.5",
+      methodSop: "SOP-PH-001",
+      referenceStandard: "N/A",
+      qaNotes: "",
+      assignedAnalyst: "user-003",
+      targetSla: "2026-02-15",
+    },
+    {
+      id: "ts-r-010",
+      parameter: "Moisture Content",
+      acceptanceCriteria: "NMT 3.0%",
+      methodSop: "SOP-KF-002",
+      referenceStandard: "Water Standard",
+      qaNotes: "Use lyophilized sample as-is",
+      assignedAnalyst: "user-006",
+      targetSla: "2026-02-16",
+    },
+  ],
+  "SI-2026-011": [
+    {
+      id: "ts-r-011",
+      parameter: "Assay (% w/w)",
+      acceptanceCriteria: "93.0% - 107.0%",
+      methodSop: "SOP-HPLC-005",
+      referenceStandard: "USP RS Azithromycin",
+      qaNotes: "",
+      assignedAnalyst: "user-003",
+      targetSla: "2026-03-01",
+    },
+    {
+      id: "ts-r-012",
+      parameter: "Related Substances",
+      acceptanceCriteria: "NMT 1.0%",
+      methodSop: "SOP-HPLC-006",
+      referenceStandard: "USP RS Azithromycin Impurities",
+      qaNotes: "Check all specified impurities",
+      assignedAnalyst: "user-003",
+      targetSla: "2026-03-02",
+    },
+    {
+      id: "ts-r-013",
+      parameter: "Microbial Limit Test",
+      acceptanceCriteria: "NMT 1000 CFU/g (Total Aerobic)",
+      methodSop: "SOP-MLT-001",
+      referenceStandard: "N/A",
+      qaNotes: "",
+      assignedAnalyst: "user-004",
+      targetSla: "2026-03-04",
+    },
+    {
+      id: "ts-r-014",
+      parameter: "Dissolution (Q)",
+      acceptanceCriteria: "NLT 75% in 30 min",
+      methodSop: "SOP-DISS-002",
+      referenceStandard: "N/A",
+      qaNotes: "Apparatus II, 75 rpm, pH 6.8 buffer",
+      assignedAnalyst: "user-006",
+      targetSla: "2026-03-03",
     },
   ],
 };

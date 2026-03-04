@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Award, CheckCircle2, Info, Printer } from "lucide-react";
-import React from "react";
+import React, { useRef } from "react";
 import { COA_RECORDS, SAMPLE_INTAKES, getSampleById } from "../lib/mockData";
 
 interface COAProps {
@@ -11,6 +11,57 @@ interface COAProps {
 
 export function COA({ sampleId: propSampleId }: COAProps) {
   const navigate = useNavigate();
+  const coaPrintRef = useRef<HTMLDivElement>(null);
+
+  function savePDF() {
+    const el = coaPrintRef.current;
+    if (!el) return;
+
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) return;
+
+    // Collect all stylesheet hrefs from the current page
+    const styleLinks = Array.from(
+      document.querySelectorAll("link[rel='stylesheet']"),
+    )
+      .map(
+        (l) =>
+          `<link rel="stylesheet" href="${(l as HTMLLinkElement).href}" />`,
+      )
+      .join("\n");
+
+    // Collect all inline <style> tags
+    const inlineStyles = Array.from(document.querySelectorAll("style"))
+      .map((s) => `<style>${s.innerHTML}</style>`)
+      .join("\n");
+
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Certificate of Analysis</title>
+  ${styleLinks}
+  ${inlineStyles}
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 16px; background: white; font-family: Inter, DM Sans, sans-serif; }
+    @media print {
+      body { padding: 0; }
+      @page { margin: 10mm; size: A4; }
+    }
+  </style>
+</head>
+<body>
+  ${el.outerHTML}
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); window.close(); }, 400);
+    };
+  <\/script>
+</body>
+</html>`);
+    printWindow.document.close();
+  }
 
   const coa = propSampleId
     ? COA_RECORDS.find((c) => c.sampleId === propSampleId)
@@ -114,14 +165,17 @@ export function COA({ sampleId: propSampleId }: COAProps) {
             <p className="page-subtitle">{coa.coaNumber}</p>
           </div>
         </div>
-        <Button onClick={() => window.print()} className="gap-2 print-hide">
+        <Button onClick={savePDF} className="gap-2 print-hide">
           <Printer className="h-4 w-4" />
-          Print / Save as PDF
+          Save PDF
         </Button>
       </div>
 
       {/* COA Document */}
-      <div className="coa-print-area bg-white border border-border rounded-lg overflow-hidden shadow-card">
+      <div
+        ref={coaPrintRef}
+        className="coa-print-area bg-white border border-border rounded-lg overflow-hidden shadow-card"
+      >
         {/* Header */}
         <div className="bg-primary px-8 py-6 text-primary-foreground">
           <div className="flex items-center justify-between">
