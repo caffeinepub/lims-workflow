@@ -417,6 +417,77 @@ export function QAReview({ sampleId: propSampleId }: QAReviewProps) {
                   </p>
                 </div>
 
+                {/* Signatures Row */}
+                <div className="mb-5 grid grid-cols-2 gap-4">
+                  {/* Section In-Charge Signature */}
+                  <div
+                    className="border border-gray-200 rounded-lg p-4 bg-white"
+                    data-ocid="qa-review.sic-signature.panel"
+                  >
+                    {/* Cursive name — Dancing Script handwriting font */}
+                    <p
+                      className="mb-1 leading-tight"
+                      style={{
+                        fontFamily: "'Dancing Script', cursive",
+                        fontWeight: 700,
+                        fontSize: "1.75rem",
+                        color: "#1a2744",
+                        letterSpacing: "0.01em",
+                      }}
+                    >
+                      R. Malhotra
+                    </p>
+                    {/* Divider line */}
+                    <div className="border-b border-gray-400 mb-2" />
+                    {/* Full name */}
+                    <p className="text-xs font-bold text-gray-800 mb-0.5">
+                      Rajesh Malhotra
+                    </p>
+                    {/* Role */}
+                    <p
+                      className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1"
+                      style={{ fontSize: "0.6rem", letterSpacing: "0.08em" }}
+                    >
+                      Section Incharge (Analyst)
+                    </p>
+                    {/* Digital sign date */}
+                    <p className="text-xs text-gray-400 italic">
+                      Digitally Signed: 16-Jan-2024 14:30
+                    </p>
+                  </div>
+
+                  {/* QA Head Signature */}
+                  <div
+                    className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50/50 flex flex-col justify-between"
+                    data-ocid="qa-review.qa-signature.panel"
+                  >
+                    <div>
+                      {/* Empty signature line placeholder */}
+                      <div className="h-8 mb-1" />
+                      <div className="border-b border-gray-300 mb-2" />
+                      <p className="text-xs font-bold text-gray-500 mb-0.5">
+                        QA Head / Authorized Signatory
+                      </p>
+                      <p
+                        className="text-xs font-semibold text-gray-400 uppercase tracking-wide"
+                        style={{ fontSize: "0.6rem", letterSpacing: "0.08em" }}
+                      >
+                        Quality Assurance Department
+                      </p>
+                    </div>
+                    <p className="text-xs text-amber-600 italic font-medium mt-2">
+                      Waiting for QA Approval
+                    </p>
+                  </div>
+                </div>
+
+                {/* Separator + disclaimer */}
+                <div className="border-t border-dashed border-gray-200 pt-3 mb-4" />
+                <p className="text-xs text-gray-400 italic text-center mb-4">
+                  This is an electronically generated document and does not
+                  require a physical signature.
+                </p>
+
                 {/* Footer */}
                 <div className="border-t border-gray-200 pt-3 flex items-center justify-between">
                   <p className="text-xs text-gray-400">

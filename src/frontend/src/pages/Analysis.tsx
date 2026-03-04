@@ -134,6 +134,8 @@ export function Analysis({ sampleId: propSampleId }: AnalysisProps) {
   const [analystRemarks, setAnalystRemarks] = useState("");
   const [overallResult, setOverallResult] = useState<"PASS" | "FAIL" | "">("");
   const [refBatch, setRefBatch] = useState("REF-2024-S1-00");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState(DUMMY_FILES);
   const [isDragging, setIsDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -768,6 +770,43 @@ export function Analysis({ sampleId: propSampleId }: AnalysisProps) {
                     placeholder="REF-2024-S1-00"
                     className="text-xs"
                     data-ocid="analysis.ref_batch.input"
+                  />
+                </div>
+              </div>
+
+              {/* Start Date / End Date */}
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label
+                    htmlFor="analysis-start-date"
+                    className="text-xs font-semibold text-slate-700"
+                  >
+                    Start Date
+                  </label>
+                  <input
+                    id="analysis-start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    data-ocid="analysis.start_date.input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label
+                    htmlFor="analysis-end-date"
+                    className="text-xs font-semibold text-slate-700"
+                  >
+                    End Date
+                  </label>
+                  <input
+                    id="analysis-end-date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate || undefined}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    data-ocid="analysis.end_date.input"
                   />
                 </div>
               </div>
