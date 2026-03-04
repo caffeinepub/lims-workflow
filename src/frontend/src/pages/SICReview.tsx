@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -7,12 +8,10 @@ import {
   ChevronUp,
   ClipboardList,
   Clock,
-  Download,
   ExternalLink,
   FileText,
   Info,
   Printer,
-  Share2,
   Shield,
 } from "lucide-react";
 import React, { useState } from "react";
@@ -82,6 +81,11 @@ export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
   const [lineageExpanded, setLineageExpanded] = useState(true);
   const [lineageOldExpanded, setLineageOldExpanded] = useState(false);
   const [commentsError, setCommentsError] = useState("");
+  const [checkedRows, setCheckedRows] = useState<Record<string, boolean>>({});
+
+  const toggleRow = (parameter: string) => {
+    setCheckedRows((prev) => ({ ...prev, [parameter]: !prev[parameter] }));
+  };
 
   const handleDecision = async (decision: "approve" | "reject") => {
     if (!approvalComments.trim()) {
@@ -221,21 +225,6 @@ export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
             >
               <Printer className="h-3.5 w-3.5" /> Print Draft
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs h-8"
-              data-ocid="sic-review.share.button"
-            >
-              <Share2 className="h-3.5 w-3.5" /> Share Securely
-            </Button>
-            <Button
-              size="sm"
-              className="gap-1.5 text-xs h-8 bg-blue-600 hover:bg-blue-700"
-              data-ocid="sic-review.download.button"
-            >
-              <Download className="h-3.5 w-3.5" /> Download PDF (v1.2)
-            </Button>
           </div>
         </div>
       </div>
@@ -257,10 +246,10 @@ export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
             </Button>
             <div>
               <h1 className="text-xl font-bold text-foreground">
-                Final COA Management
+                Section In-Charge Review
               </h1>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Section In-Charge Review — {sample.sampleName}
+                {sample.sampleName}
               </p>
             </div>
           </div>
@@ -370,6 +359,7 @@ export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
                   <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-3 py-2 w-8" />
                         <th className="text-left px-3 py-2 font-semibold text-gray-600 w-1/4">
                           Test Parameter
                         </th>
@@ -397,11 +387,19 @@ export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
                             status: r.verdict || "Pending",
                           }))
                         : COA_TEST_PARAMS
-                      ).map((row) => (
+                      ).map((row, idx) => (
                         <tr
                           key={row.parameter}
-                          className="border-b border-gray-100"
+                          className={`border-b border-gray-100 transition-colors ${checkedRows[row.parameter] ? "bg-blue-50/40" : ""}`}
                         >
+                          <td className="px-3 py-2">
+                            <Checkbox
+                              checked={!!checkedRows[row.parameter]}
+                              onCheckedChange={() => toggleRow(row.parameter)}
+                              data-ocid={`sic-review.test-param.checkbox.${idx + 1}`}
+                              aria-label={`Select ${row.parameter}`}
+                            />
+                          </td>
                           <td className="px-3 py-2 text-gray-800">
                             {row.parameter}
                           </td>
@@ -443,47 +441,6 @@ export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
                     Sample meets all specified criteria for release. No
                     deviations recorded during the analysis process.
                   </p>
-                </div>
-
-                {/* Signature Block */}
-                <div className="grid grid-cols-2 gap-8 mb-4">
-                  {/* Section InCharge Signature — signed */}
-                  <div className="text-center">
-                    <p
-                      className="font-bold text-gray-700 mb-1"
-                      style={{
-                        fontFamily: "Georgia, serif",
-                        fontSize: "28px",
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      R. Malhotra
-                    </p>
-                    <div className="border-b-2 border-gray-700 mb-2" />
-                    <p className="text-xs font-semibold text-gray-800">
-                      Rajesh Malhotra
-                    </p>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">
-                      Section Incharge (Analyst)
-                    </p>
-                    <p className="text-xs text-gray-400 italic">
-                      Digitally Signed: 16-Jan-2024 14:30
-                    </p>
-                  </div>
-
-                  {/* QA Signature — awaiting */}
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400 italic mb-1">
-                      Waiting for QA Approval
-                    </p>
-                    <div className="border-b border-dashed border-gray-300 mb-2 h-8" />
-                    <p className="text-xs font-semibold text-gray-800">
-                      QA Head / Authorized Signatory
-                    </p>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">
-                      Quality Assurance Department
-                    </p>
-                  </div>
                 </div>
 
                 {/* Footer */}
