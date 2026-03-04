@@ -197,7 +197,6 @@ export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
   }
 
   const docId = `COA-2024-${selectedSampleId.split("-")[2] || "001"}-V1.2`;
-  const batchNo = `BATCH-${selectedSampleId.split("-")[2] || "001"}-2024`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -285,72 +284,6 @@ export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
 
               {/* COA Certificate */}
               <div className="p-6">
-                {/* Certificate Header */}
-                <div className="flex items-start justify-between mb-5">
-                  <div>
-                    <h2 className="text-2xl font-bold text-blue-700 mb-0.5">
-                      Certificate of Analysis
-                    </h2>
-                    <p className="text-xs text-muted-foreground font-mono">
-                      DOCUMENT ID: {docId}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded text-xs font-semibold text-blue-700 mb-1">
-                      ISO 9001:2015 CERTIFIED
-                    </div>
-                    <p className="text-xs font-semibold text-gray-700">
-                      Global Pharma Labs Inc.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Industrial Area Phase 1, Building 48
-                    </p>
-                  </div>
-                </div>
-
-                {/* Product Metadata Grid */}
-                <div className="grid grid-cols-2 gap-x-8 gap-y-2 mb-5 text-xs border-t border-b border-gray-100 py-4">
-                  <div className="flex gap-2">
-                    <span className="text-muted-foreground w-28 shrink-0">
-                      Product Name:
-                    </span>
-                    <span className="font-medium">
-                      {sample.sampleName}{" "}
-                      <span className="text-muted-foreground">IP</span>
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-muted-foreground w-28 shrink-0">
-                      Batch Number:
-                    </span>
-                    <span className="font-medium">{batchNo}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-muted-foreground w-28 shrink-0">
-                      Sample Type:
-                    </span>
-                    <span className="font-medium">{sample.sampleType}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-muted-foreground w-28 shrink-0">
-                      Manufacturing Date:
-                    </span>
-                    <span className="font-medium">12 Jan-2024</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-muted-foreground w-28 shrink-0">
-                      Expiry Date:
-                    </span>
-                    <span className="font-medium">11 Jan-2026</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-muted-foreground w-28 shrink-0">
-                      Sample Date:
-                    </span>
-                    <span className="font-medium">{sample.dateOfReceipt}</span>
-                  </div>
-                </div>
-
                 {/* Analytical Test Results */}
                 <div className="mb-5">
                   <p className="text-xs font-bold uppercase tracking-widest text-gray-700 mb-3">
