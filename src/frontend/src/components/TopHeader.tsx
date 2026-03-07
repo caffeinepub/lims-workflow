@@ -1,5 +1,4 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,10 +28,7 @@ import {
   Clock,
   ExternalLink,
   LogOut,
-  Shield,
   Timer,
-  User,
-  UserCheck,
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -79,55 +75,22 @@ const ROLE_COLORS: Record<
   { bg: string; text: string; border: string }
 > = {
   admin: {
-    bg: "bg-purple-500/15",
-    text: "text-purple-300",
-    border: "border-purple-500/30",
+    bg: "bg-purple-100",
+    text: "text-purple-700",
+    border: "border-purple-200",
   },
-  qa: {
-    bg: "bg-blue-500/15",
-    text: "text-blue-300",
-    border: "border-blue-500/30",
-  },
+  qa: { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-200" },
   sectionInCharge: {
-    bg: "bg-amber-500/15",
-    text: "text-amber-300",
-    border: "border-amber-500/30",
+    bg: "bg-amber-100",
+    text: "text-amber-700",
+    border: "border-amber-200",
   },
   analyst: {
-    bg: "bg-emerald-500/15",
-    text: "text-emerald-300",
-    border: "border-emerald-500/30",
+    bg: "bg-emerald-100",
+    text: "text-emerald-700",
+    border: "border-emerald-200",
   },
 };
-
-const ROLE_ICONS: Record<string, React.ReactNode> = {
-  admin: <Shield className="h-3 w-3" />,
-  qa: <ShieldCheck className="h-3 w-3" />,
-  sectionInCharge: <UserCheck className="h-3 w-3" />,
-  analyst: <User className="h-3 w-3" />,
-};
-
-// lazy import to avoid circular — just inline the check icon
-function ShieldCheck({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-label="Shield check"
-      role="img"
-    >
-      <title>Shield check</title>
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <polyline points="9 12 11 14 15 10" />
-    </svg>
-  );
-}
 
 function getInitials(name: string) {
   return name
@@ -138,13 +101,13 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-// ─── StatPill ───────────────────────────────────────────────────────────────
+// ─── StatPill (light) ───────────────────────────────────────────────────────
 
 interface StatPillProps {
   icon: React.ReactNode;
   label: string;
   value: string;
-  color?: string;
+  iconColor?: string;
   tooltip?: string;
 }
 
@@ -152,23 +115,23 @@ function StatPill({
   icon,
   label,
   value,
-  color = "text-slate-300",
+  iconColor = "text-indigo-500",
   tooltip,
 }: StatPillProps) {
   const pill = (
     <div
       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border"
       style={{
-        background: "rgba(255,255,255,0.04)",
-        borderColor: "rgba(45,180,210,0.15)",
+        background: "#F9FAFB",
+        borderColor: "#E5E7EB",
       }}
     >
-      <span className={`${color} shrink-0`}>{icon}</span>
+      <span className={`${iconColor} shrink-0`}>{icon}</span>
       <div className="flex flex-col leading-none">
-        <span className="text-[9px] text-slate-500 uppercase tracking-wide font-medium">
+        <span className="text-[9px] text-gray-400 uppercase tracking-wide font-medium">
           {label}
         </span>
-        <span className="text-[11px] font-semibold text-slate-200 font-mono tabular-nums">
+        <span className="text-[11px] font-semibold text-gray-700 font-mono tabular-nums">
           {value}
         </span>
       </div>
@@ -214,7 +177,7 @@ function safeEvalHeader(expr: string): string {
   }
 }
 
-// ─── QuickCalculator Popover ──────────────────────────────────────────────────
+// ─── QuickCalculator Popover (light) ──────────────────────────────────────────
 
 function QuickCalculator() {
   const navigate = useNavigate();
@@ -302,15 +265,15 @@ function QuickCalculator() {
   const btnClass = (type: BtnType) => {
     switch (type) {
       case "num":
-        return "bg-[#0f1f35] hover:bg-[#162a45] border border-teal-500/20 text-slate-100";
+        return "bg-white hover:bg-gray-50 border border-gray-200 text-gray-800";
       case "op":
-        return "bg-[#0a1628] hover:bg-teal-500/20 border border-teal-500/30 text-teal-300";
+        return "bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700";
       case "sci":
-        return "bg-[#0d1a30] hover:bg-indigo-500/20 border border-indigo-500/25 text-indigo-300 text-[10px]";
+        return "bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 text-[10px]";
       case "fn":
-        return "bg-[#1a0e1e] hover:bg-rose-500/20 border border-rose-500/30 text-rose-300";
+        return "bg-red-50 hover:bg-red-100 border border-red-200 text-red-600";
       case "eq":
-        return "bg-gradient-to-br from-emerald-500 to-teal-500 text-white font-bold";
+        return "bg-indigo-600 hover:bg-indigo-700 text-white font-bold border-0";
       default:
         return "";
     }
@@ -321,15 +284,12 @@ function QuickCalculator() {
       {/* Display */}
       <div
         className="rounded-lg p-3 space-y-0.5"
-        style={{
-          background: "rgba(0,0,0,0.4)",
-          border: "1px solid rgba(45,180,210,0.15)",
-        }}
+        style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}
       >
-        <div className="text-right text-[10px] font-mono text-slate-500 truncate min-h-[14px]">
+        <div className="text-right text-[10px] font-mono text-gray-400 truncate min-h-[14px]">
           {expr || "0"}
         </div>
-        <div className="text-right text-xl font-mono font-bold text-teal-300 truncate">
+        <div className="text-right text-xl font-mono font-bold text-indigo-600 truncate">
           {result}
         </div>
       </div>
@@ -346,7 +306,7 @@ function QuickCalculator() {
         }}
         placeholder="Type expression..."
         data-ocid="header.calculator.input"
-        className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600 font-mono"
+        className="h-8 text-xs font-mono"
       />
 
       {/* Keypad */}
@@ -365,7 +325,6 @@ function QuickCalculator() {
             {btn.label}
           </button>
         ))}
-        {/* = button spans full width */}
         <button
           type="button"
           onClick={evaluate}
@@ -378,7 +337,7 @@ function QuickCalculator() {
       {/* History */}
       {history.length > 0 && (
         <div className="space-y-1">
-          <p className="text-[9px] text-slate-600 uppercase tracking-wide">
+          <p className="text-[9px] text-gray-400 uppercase tracking-wide">
             Recent
           </p>
           {[...history].reverse().map((h, i) => (
@@ -390,13 +349,12 @@ function QuickCalculator() {
                 setExpr(h.expr);
                 setResult(h.result);
               }}
-              className="w-full text-left rounded px-2 py-1 hover:bg-white/5 transition-colors"
-              style={{ border: "1px solid rgba(45,180,210,0.08)" }}
+              className="w-full text-left rounded px-2 py-1 hover:bg-gray-50 transition-colors border border-gray-100"
             >
-              <span className="text-[10px] font-mono text-slate-500">
+              <span className="text-[10px] font-mono text-gray-400">
                 {h.expr}
               </span>
-              <span className="text-[10px] font-mono text-teal-300 ml-1">
+              <span className="text-[10px] font-mono text-indigo-600 ml-1">
                 = {h.result}
               </span>
             </button>
@@ -409,8 +367,7 @@ function QuickCalculator() {
         type="button"
         onClick={() => navigate({ to: "/calculator" })}
         data-ocid="header.calculator.open_full.button"
-        className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-medium text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 transition-colors"
-        style={{ border: "1px solid rgba(45,212,191,0.2)" }}
+        className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors border border-indigo-200"
       >
         <ExternalLink className="h-3 w-3" />
         Open Full Calculator
@@ -431,8 +388,6 @@ export function TopHeader() {
     loginTime,
   } = useRole();
 
-  const roleColor = ROLE_COLORS[activeUser.role] ?? ROLE_COLORS.analyst;
-
   const sessionLabel = useMemo(
     () => formatDuration(sessionSeconds),
     [sessionSeconds],
@@ -447,19 +402,15 @@ export function TopHeader() {
       className="sticky top-0 z-30 flex items-center justify-between px-4 py-0 h-14"
       data-ocid="top_header.section"
       style={{
-        background:
-          "linear-gradient(90deg, #0d2137 0%, #0a1a2e 60%, #0d2137 100%)",
-        borderBottom: "1px solid rgba(45,180,210,0.18)",
-        boxShadow: "0 2px 16px rgba(0,0,0,0.25)",
+        background: "rgb(2, 132, 199)",
+        borderBottom: "1px solid rgba(0,0,0,0.12)",
+        boxShadow: "0px 2px 4px rgba(0,0,0,0.15)",
       }}
     >
-      {/* Left: page context placeholder (breadcrumb slot) */}
+      {/* Left: system identity */}
       <div className="flex items-center gap-2">
-        <div
-          className="h-1.5 w-1.5 rounded-full animate-pulse"
-          style={{ background: "#2dd4bf" }}
-        />
-        <span className="text-[11px] text-slate-500 font-medium tracking-wide uppercase">
+        <div className="h-1.5 w-1.5 rounded-full bg-white opacity-80" />
+        <span className="text-[11px] text-white font-medium tracking-wide uppercase opacity-90">
           DKR LIMS &mdash; Workflow Management
         </span>
       </div>
@@ -470,21 +421,21 @@ export function TopHeader() {
           icon={<Activity className="h-3.5 w-3.5" />}
           label="System Uptime"
           value={uptimeLabel}
-          color="text-teal-400"
+          iconColor="text-indigo-500"
           tooltip="Time since the application started"
         />
         <StatPill
           icon={<Timer className="h-3.5 w-3.5" />}
           label="Session Time"
           value={sessionLabel}
-          color="text-sky-400"
+          iconColor="text-blue-500"
           tooltip="Time since current user session began"
         />
         <StatPill
           icon={<Clock className="h-3.5 w-3.5" />}
           label="Logged In At"
           value={formatLoginTime(loginTime)}
-          color="text-indigo-400"
+          iconColor="text-violet-500"
           tooltip={`Login date: ${formatLoginDate(loginTime)}`}
         />
       </div>
@@ -501,8 +452,7 @@ export function TopHeader() {
                     variant="ghost"
                     size="icon"
                     data-ocid="header.calculator.button"
-                    className="h-9 w-9 rounded-lg border hover:bg-teal-500/10 hover:border-teal-500/40 hover:text-teal-300 transition-colors text-slate-400"
-                    style={{ borderColor: "rgba(45,180,210,0.2)" }}
+                    className="h-9 w-9 rounded-lg border border-white/30 hover:bg-white/20 hover:border-white/50 transition-colors text-white"
                   >
                     <Calculator className="h-4 w-4" />
                   </Button>
@@ -516,16 +466,11 @@ export function TopHeader() {
           <PopoverContent
             align="end"
             side="bottom"
-            className="w-[380px] p-3 border-0"
-            style={{
-              background: "linear-gradient(135deg, #0d2137 0%, #0a1628 100%)",
-              border: "1px solid rgba(45,180,210,0.25)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-            }}
+            className="w-[380px] p-3 bg-white border border-gray-200 shadow-lg"
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                <Calculator className="h-4 w-4 text-teal-400" />
+              <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                <Calculator className="h-4 w-4 text-indigo-500" />
                 Quick Calculator
               </h3>
             </div>
@@ -539,112 +484,108 @@ export function TopHeader() {
             <Button
               variant="ghost"
               data-ocid="header.user_switcher.button"
-              className="flex items-center gap-2.5 h-10 px-3 rounded-lg border hover:bg-white/5 transition-colors"
-              style={{ borderColor: "rgba(45,180,210,0.2)" }}
+              className="flex items-center gap-2.5 h-10 px-3 rounded-lg border border-white/30 hover:bg-white/20 transition-colors"
             >
               <Avatar className="h-7 w-7 shrink-0">
                 <AvatarFallback
-                  className="text-[11px] font-bold"
+                  className="text-[11px] font-bold text-white"
                   style={{
-                    background: "linear-gradient(135deg,#0ea5e9,#14b8a6)",
-                    color: "white",
+                    background: "rgba(255,255,255,0.25)",
                   }}
                 >
                   {getInitials(activeUser.name)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col items-start leading-none">
-                <span className="text-[12px] font-semibold text-slate-100 truncate max-w-[130px]">
+                <span className="text-[12px] font-semibold text-white truncate max-w-[130px]">
                   {activeUser.name}
                 </span>
                 <div className="flex items-center gap-1 mt-0.5">
-                  <span
-                    className={`flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${roleColor.bg} ${roleColor.text} ${roleColor.border}`}
-                  >
-                    {ROLE_ICONS[activeUser.role]}
-                    <span>{ROLE_LABELS[activeUser.role]}</span>
+                  <span className="text-[10px] font-medium text-white/75">
+                    {ROLE_LABELS[activeUser.role]}
                   </span>
                 </div>
               </div>
-              <ChevronDown className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              <ChevronDown className="h-3.5 w-3.5 text-white/60 shrink-0" />
             </Button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-72">
+          <DropdownMenuContent
+            align="end"
+            className="w-72 bg-white border border-gray-200 shadow-lg"
+          >
             {/* Current user info card */}
-            <div
-              className="p-3 rounded-t-md mb-1"
-              style={{
-                background: "linear-gradient(135deg,#0ea5e910,#14b8a610)",
-              }}
-            >
+            <div className="p-3 rounded-t-md mb-1 bg-indigo-50 border-b border-indigo-100">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
                   <AvatarFallback
-                    className="text-sm font-bold"
+                    className="text-sm font-bold text-white"
                     style={{
-                      background: "linear-gradient(135deg,#0ea5e9,#14b8a6)",
-                      color: "white",
+                      background: "linear-gradient(135deg,#4338CA,#6366F1)",
                     }}
                   >
                     {getInitials(activeUser.name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">
+                  <p className="text-sm font-semibold text-gray-900 truncate">
                     {activeUser.name}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-xs text-gray-500 truncate">
                     {activeUser.email}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-gray-500">
                     {activeUser.designation}
                   </p>
                 </div>
               </div>
-              {/* Session info mini-block */}
               <div className="mt-2 grid grid-cols-2 gap-1.5">
-                <div className="rounded p-1.5 bg-muted/50 text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">
+                <div className="rounded p-1.5 bg-white text-center border border-indigo-100">
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wide">
                     Session
                   </p>
-                  <p className="text-[11px] font-mono font-semibold">
+                  <p className="text-[11px] font-mono font-semibold text-gray-700">
                     {sessionLabel}
                   </p>
                 </div>
-                <div className="rounded p-1.5 bg-muted/50 text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">
+                <div className="rounded p-1.5 bg-white text-center border border-indigo-100">
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wide">
                     Login at
                   </p>
-                  <p className="text-[11px] font-mono font-semibold">
+                  <p className="text-[11px] font-mono font-semibold text-gray-700">
                     {formatLoginTime(loginTime)}
                   </p>
                 </div>
               </div>
             </div>
 
-            <DropdownMenuLabel className="text-xs text-muted-foreground font-normal px-3">
+            <DropdownMenuLabel className="text-xs text-gray-400 font-normal px-3">
               Switch User (Demo)
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
 
             {DUMMY_USERS.map((user) => {
               const rc = ROLE_COLORS[user.role] ?? ROLE_COLORS.analyst;
-              const isActive = activeUser.id === user.id;
+              const isActiveUser = activeUser.id === user.id;
               return (
                 <DropdownMenuItem
                   key={user.id}
                   data-ocid={`header.user_switch.item.${DUMMY_USERS.indexOf(user) + 1}`}
                   onClick={() => setActiveUser(user)}
-                  className={`flex items-center gap-3 cursor-pointer mx-1 rounded-md ${isActive ? "bg-accent" : ""}`}
+                  className={`flex items-center gap-3 cursor-pointer mx-1 rounded-md ${isActiveUser ? "bg-indigo-50" : "hover:bg-gray-50"}`}
                 >
                   <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                    <AvatarFallback
+                      className="text-xs font-semibold text-white"
+                      style={{
+                        background: "linear-gradient(135deg,#4338CA,#6366F1)",
+                      }}
+                    >
                       {getInitials(user.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-sm font-medium truncate">
+                    <span className="text-sm font-medium text-gray-800 truncate">
                       {user.name}
                     </span>
                     <span
@@ -653,8 +594,8 @@ export function TopHeader() {
                       {ROLE_LABELS[user.role]}
                     </span>
                   </div>
-                  {isActive && (
-                    <div className="h-2 w-2 rounded-full bg-teal-500 shrink-0" />
+                  {isActiveUser && (
+                    <div className="h-2 w-2 rounded-full bg-indigo-500 shrink-0" />
                   )}
                 </DropdownMenuItem>
               );
@@ -664,7 +605,7 @@ export function TopHeader() {
             <DropdownMenuItem
               data-ocid="header.logout.button"
               onClick={logout}
-              className="flex items-center gap-2 text-red-500 hover:text-red-600 hover:bg-red-500/10 mx-1 rounded-md cursor-pointer"
+              className="flex items-center gap-2 text-red-500 hover:text-red-600 hover:bg-red-50 mx-1 rounded-md cursor-pointer"
             >
               <LogOut className="h-4 w-4" />
               <span className="text-sm font-medium">Logout</span>
@@ -681,8 +622,7 @@ export function TopHeader() {
                 size="icon"
                 data-ocid="header.logout_quick.button"
                 onClick={logout}
-                className="h-9 w-9 rounded-lg border hover:bg-red-500/10 hover:border-red-500/40 hover:text-red-400 transition-colors text-slate-400"
-                style={{ borderColor: "rgba(45,180,210,0.2)" }}
+                className="h-9 w-9 rounded-lg border border-white/30 hover:bg-white/20 hover:border-white/50 transition-colors text-white/80"
               >
                 <LogOut className="h-4 w-4" />
               </Button>

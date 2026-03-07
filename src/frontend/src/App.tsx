@@ -10,6 +10,7 @@ import { Layout } from "./components/Layout";
 import { RoleProvider } from "./contexts/RoleContext";
 import { AdminPanel } from "./pages/AdminPanel";
 import { Analysis } from "./pages/Analysis";
+import { ApiDocs } from "./pages/ApiDocs";
 import { COA } from "./pages/COA";
 import { Calculator } from "./pages/Calculator";
 import { Dashboard } from "./pages/Dashboard";
@@ -165,6 +166,11 @@ const calculatorRoute = createRoute({
   path: "/calculator",
   component: Calculator,
 });
+const apiDocsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/api-docs",
+  component: ApiDocs,
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -189,6 +195,7 @@ const routeTree = rootRoute.addChildren([
   adminRoute,
   testMastersRoute,
   calculatorRoute,
+  apiDocsRoute,
 ]);
 
 const router = createRouter({ routeTree });

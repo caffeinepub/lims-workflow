@@ -412,8 +412,8 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* ── Section 3: My Tasks + Recent Samples ─── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* ── Section 3: My Tasks + Recent Samples + Workflow Status ─── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* My Tasks */}
             <div
               className="bg-white rounded-xl border border-gray-100"
@@ -582,12 +582,12 @@ export function Dashboard() {
                           </span>
                         </td>
                         <td className="py-2.5 px-2">
-                          <span className="text-xs text-gray-600 truncate max-w-[100px] block">
+                          <span className="text-xs text-gray-600 truncate max-w-[80px] block">
                             {sample.customerName}
                           </span>
                         </td>
                         <td className="py-2.5 px-2">
-                          <span className="text-xs text-gray-500 truncate max-w-[80px] block">
+                          <span className="text-xs text-gray-500 truncate max-w-[70px] block">
                             {sample.sampleType}
                           </span>
                         </td>
@@ -620,150 +620,10 @@ export function Dashboard() {
                 </table>
               </div>
             </div>
-          </div>
 
-          {/* ── Section 4: Charts + Camunda ─────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            {/* Sample Distribution Bar Chart */}
+            {/* Workflow Status */}
             <div
-              className="lg:col-span-3 bg-white rounded-xl border border-gray-100 p-5"
-              style={{
-                boxShadow:
-                  "0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04)",
-              }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-blue-500" />
-                  <h3 className="text-sm font-semibold text-gray-700">
-                    Sample Distribution
-                  </h3>
-                </div>
-              </div>
-              <Tabs defaultValue="bar">
-                <TabsList className="h-7 mb-3 bg-gray-100">
-                  <TabsTrigger
-                    value="bar"
-                    className="text-xs h-6"
-                    data-ocid="dashboard.chart_tab.bar"
-                  >
-                    Bar Chart
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="donut"
-                    className="text-xs h-6"
-                    data-ocid="dashboard.chart_tab.pie"
-                  >
-                    Donut
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="bar" className="mt-0">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart
-                      data={chartData}
-                      margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="#f0f4f8"
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="stage"
-                        tick={{ fontSize: 9, fill: "#94a3b8" }}
-                        angle={-15}
-                        textAnchor="end"
-                        height={45}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 11, fill: "#94a3b8" }}
-                        allowDecimals={false}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          fontSize: 12,
-                          borderRadius: 8,
-                          border: "1px solid #e2e8f0",
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                        }}
-                        formatter={(value) => [value, "Samples"]}
-                      />
-                      <Bar
-                        dataKey="count"
-                        radius={[5, 5, 0, 0]}
-                        maxBarSize={38}
-                      >
-                        {chartData.map((entry) => (
-                          <Cell key={entry.stage} fill={entry.fill} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </TabsContent>
-                <TabsContent value="donut" className="mt-0">
-                  <div className="relative flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={donutData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={85}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {donutData.map((entry) => (
-                            <Cell key={entry.name} fill={entry.fill} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            fontSize: 12,
-                            borderRadius: 8,
-                            border: "1px solid #e2e8f0",
-                          }}
-                          formatter={(value) => [value, "Samples"]}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-2xl font-bold text-gray-900">
-                        {totalSamples}
-                      </span>
-                      <span className="text-[10px] text-gray-400 uppercase tracking-wide">
-                        Total
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-2">
-                    {donutData.map((d) => (
-                      <span
-                        key={d.name}
-                        className="flex items-center gap-1.5 text-[11px] text-gray-500"
-                      >
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ backgroundColor: d.fill }}
-                        />
-                        {d.name}
-                        <span className="font-semibold text-gray-700">
-                          {d.value}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            {/* Camunda BPM Status */}
-            <div
-              className="lg:col-span-2 bg-white rounded-xl border border-gray-100 p-5"
+              className="bg-white rounded-xl border border-gray-100 p-5"
               style={{
                 boxShadow:
                   "0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04)",
@@ -772,7 +632,7 @@ export function Dashboard() {
               <div className="flex items-center gap-2 mb-4">
                 <Zap className="h-4 w-4 text-amber-500" />
                 <h3 className="text-sm font-semibold text-gray-700">
-                  Camunda BPM Status
+                  Workflow Status
                 </h3>
                 <Badge
                   variant="outline"
@@ -831,6 +691,139 @@ export function Dashboard() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* ── Section 4: Sample Distribution Chart ─────────── */}
+          <div
+            className="bg-white rounded-xl border border-gray-100 p-5"
+            style={{
+              boxShadow:
+                "0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04)",
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-blue-500" />
+                <h3 className="text-sm font-semibold text-gray-700">
+                  Sample Distribution
+                </h3>
+              </div>
+            </div>
+            <Tabs defaultValue="bar">
+              <TabsList className="h-7 mb-3 bg-gray-100">
+                <TabsTrigger
+                  value="bar"
+                  className="text-xs h-6"
+                  data-ocid="dashboard.chart_tab.bar"
+                >
+                  Bar Chart
+                </TabsTrigger>
+                <TabsTrigger
+                  value="donut"
+                  className="text-xs h-6"
+                  data-ocid="dashboard.chart_tab.pie"
+                >
+                  Donut
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="bar" className="mt-0">
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#f0f4f8"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="stage"
+                      tick={{ fontSize: 9, fill: "#94a3b8" }}
+                      angle={-15}
+                      textAnchor="end"
+                      height={45}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      allowDecimals={false}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        fontSize: 12,
+                        borderRadius: 8,
+                        border: "1px solid #e2e8f0",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                      }}
+                      formatter={(value) => [value, "Samples"]}
+                    />
+                    <Bar dataKey="count" radius={[5, 5, 0, 0]} maxBarSize={38}>
+                      {chartData.map((entry) => (
+                        <Cell key={entry.stage} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </TabsContent>
+              <TabsContent value="donut" className="mt-0">
+                <div className="relative flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={donutData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {donutData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          fontSize: 12,
+                          borderRadius: 8,
+                          border: "1px solid #e2e8f0",
+                        }}
+                        formatter={(value) => [value, "Samples"]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-2xl font-bold text-gray-900">
+                      {totalSamples}
+                    </span>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">
+                      Total
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-2">
+                  {donutData.map((d) => (
+                    <span
+                      key={d.name}
+                      className="flex items-center gap-1.5 text-[11px] text-gray-500"
+                    >
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: d.fill }}
+                      />
+                      {d.name}
+                      <span className="font-semibold text-gray-700">
+                        {d.value}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
 

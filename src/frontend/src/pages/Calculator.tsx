@@ -230,31 +230,25 @@ function KeyboardCalculator({ onAddHistory }: KeyboardCalcProps) {
   const btnStyle = (type: ButtonDef["type"]) => {
     switch (type) {
       case "number":
-        return "bg-[#0f1f35] hover:bg-[#162a45] border border-teal-500/20 text-slate-100 hover:border-teal-400/40";
+        return "bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 shadow-sm";
       case "operator":
-        return "bg-[#0a1628] hover:bg-teal-500/20 border border-teal-500/30 text-teal-300 hover:border-teal-400/60";
+        return "bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700";
       case "scientific":
-        return "bg-[#0d1a30] hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 hover:border-indigo-400/60";
+        return "bg-[#EEF2FF] hover:bg-indigo-100 border border-indigo-200 text-indigo-600 text-[11px]";
       case "fn":
-        return "bg-[#1a0e1e] hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:border-rose-400/60";
+        return "bg-red-50 hover:bg-red-100 border border-red-200 text-red-600";
       case "equals":
-        return "bg-gradient-to-br from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 border-0 text-white font-bold shadow-lg shadow-emerald-500/25";
+        return "bg-indigo-600 hover:bg-indigo-700 border-0 text-white font-bold shadow-md";
       default:
         return "";
     }
   };
 
   return (
-    <Card
-      className="border-0"
-      style={{
-        background: "linear-gradient(135deg, #0d2137 0%, #0a1628 100%)",
-        border: "1px solid rgba(45,180,210,0.2)",
-      }}
-    >
+    <Card className="border border-gray-200 bg-white shadow-sm">
       <CardHeader className="pb-3">
-        <CardTitle className="text-slate-100 text-sm font-semibold flex items-center gap-2">
-          <Sigma className="h-4 w-4 text-teal-400" />
+        <CardTitle className="text-gray-800 text-sm font-semibold flex items-center gap-2">
+          <Sigma className="h-4 w-4 text-indigo-500" />
           Scientific Calculator
         </CardTitle>
       </CardHeader>
@@ -263,18 +257,18 @@ function KeyboardCalculator({ onAddHistory }: KeyboardCalcProps) {
         <div
           className="rounded-xl p-4 space-y-1"
           style={{
-            background: "rgba(0,0,0,0.4)",
-            border: "1px solid rgba(45,180,210,0.15)",
+            background: "#F9FAFB",
+            border: "1px solid #E5E7EB",
           }}
         >
           <div
-            className="text-right text-xs font-mono text-slate-500 min-h-[16px] truncate"
+            className="text-right text-xs font-mono text-gray-400 min-h-[16px] truncate"
             data-ocid="calculator.expression.panel"
           >
             {expression || "0"}
           </div>
           <div
-            className="text-right text-3xl font-mono font-bold text-teal-300 min-h-[40px] truncate"
+            className="text-right text-3xl font-mono font-bold text-indigo-600 min-h-[40px] truncate"
             data-ocid="calculator.result.panel"
           >
             {result}
@@ -364,19 +358,15 @@ function FormulaCard({
 
   return (
     <Card
-      className="border-0"
-      style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(45,180,210,0.12)",
-        borderLeft: "3px solid rgba(14,165,233,0.5)",
-      }}
+      className="border border-gray-200 bg-white shadow-sm"
+      style={{ borderLeft: "3px solid #4338CA" }}
     >
       <CardContent className="p-4 space-y-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
+          <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
           <div
-            className="mt-1 px-2 py-1 rounded text-xs font-mono text-teal-300"
-            style={{ background: "rgba(45,212,191,0.08)" }}
+            className="mt-1 px-2 py-1 rounded text-xs font-mono text-indigo-600"
+            style={{ background: "#EEF2FF" }}
           >
             {formula}
           </div>
@@ -385,10 +375,10 @@ function FormulaCard({
         <div className="grid grid-cols-2 gap-2">
           {fields.map((f) => (
             <div key={f.key} className="space-y-1">
-              <Label className="text-xs text-slate-400">
+              <Label className="text-xs text-gray-500">
                 {f.label}
                 {f.unit && (
-                  <span className="text-slate-500 ml-1">({f.unit})</span>
+                  <span className="text-gray-400 ml-1">({f.unit})</span>
                 )}
               </Label>
               <Input
@@ -399,20 +389,20 @@ function FormulaCard({
                   setValues((prev) => ({ ...prev, [f.key]: e.target.value }))
                 }
                 data-ocid={`${ocidPrefix}.${f.key}.input`}
-                className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600 focus:border-teal-400/50"
+                className="h-8 text-xs bg-white border-gray-200 text-gray-800 placeholder:text-gray-400 focus:border-indigo-400"
               />
             </div>
           ))}
         </div>
 
-        {extra && <div className="text-xs text-slate-400">{extra(values)}</div>}
+        {extra && <div className="text-xs text-gray-500">{extra(values)}</div>}
 
         <div className="flex items-center gap-2">
           <Button
             size="sm"
             onClick={handleCalc}
             data-ocid={`${ocidPrefix}.calculate.button`}
-            className="flex-1 h-8 text-xs bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-500 hover:to-blue-500 text-white border-0"
+            className="flex-1 h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white border-0"
           >
             Calculate
           </Button>
@@ -422,7 +412,7 @@ function FormulaCard({
               variant="outline"
               onClick={copyResult}
               data-ocid={`${ocidPrefix}.copy.button`}
-              className="h-8 text-xs border-teal-500/30 text-teal-300 hover:bg-teal-500/10"
+              className="h-8 text-xs border-indigo-200 text-indigo-600 hover:bg-indigo-50"
             >
               {copied ? (
                 <CheckCircle className="h-3 w-3" />
@@ -437,24 +427,19 @@ function FormulaCard({
           <div
             className="rounded-lg p-3 flex items-center justify-between"
             style={{
-              background:
-                result === "Error"
-                  ? "rgba(239,68,68,0.1)"
-                  : "rgba(45,212,191,0.08)",
+              background: result === "Error" ? "#FEF2F2" : "#F0FDF4",
               border:
-                result === "Error"
-                  ? "1px solid rgba(239,68,68,0.3)"
-                  : "1px solid rgba(45,212,191,0.25)",
+                result === "Error" ? "1px solid #FECACA" : "1px solid #BBF7D0",
             }}
             data-ocid={`${ocidPrefix}.result.panel`}
           >
-            <span className="text-xs text-slate-400">{resultLabel}</span>
+            <span className="text-xs text-gray-500">{resultLabel}</span>
             <span
-              className={`text-sm font-bold font-mono ${result === "Error" ? "text-red-400" : "text-teal-300"}`}
+              className={`text-sm font-bold font-mono ${result === "Error" ? "text-red-600" : "text-emerald-700"}`}
             >
               {result}
               {resultUnit && result !== "Error" && (
-                <span className="text-xs text-slate-400 ml-1 font-normal">
+                <span className="text-xs text-gray-400 ml-1 font-normal">
                   {resultUnit}
                 </span>
               )}
@@ -582,20 +567,16 @@ function ConversionsTab({
         return (
           <Card
             key={conv.label}
-            className="border-0"
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(45,180,210,0.12)",
-              borderLeft: "3px solid rgba(139,92,246,0.5)",
-            }}
+            className="border border-gray-200 bg-white shadow-sm"
+            style={{ borderLeft: "3px solid #7C3AED" }}
           >
             <CardContent className="p-4">
-              <h3 className="text-sm font-semibold text-slate-100 mb-3">
+              <h3 className="text-sm font-semibold text-gray-800 mb-3">
                 {conv.label}
               </h3>
               <div className="flex items-end gap-2 flex-wrap">
                 <div className="flex-1 min-w-[80px]">
-                  <Label className="text-xs text-slate-400">Value</Label>
+                  <Label className="text-xs text-gray-500">Value</Label>
                   <Input
                     type="number"
                     placeholder="0"
@@ -607,11 +588,11 @@ function ConversionsTab({
                       }))
                     }
                     data-ocid={`conversion.${conv.label.toLowerCase()}.input`}
-                    className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600"
+                    className="h-8 text-xs bg-white border-gray-200 text-gray-800 placeholder:text-gray-400"
                   />
                 </div>
                 <div className="w-28">
-                  <Label className="text-xs text-slate-400">From</Label>
+                  <Label className="text-xs text-gray-500">From</Label>
                   <Select
                     value={state.from}
                     onValueChange={(v) =>
@@ -622,7 +603,7 @@ function ConversionsTab({
                     }
                   >
                     <SelectTrigger
-                      className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100"
+                      className="h-8 text-xs bg-white border-gray-200 text-gray-800"
                       data-ocid={`conversion.${conv.label.toLowerCase()}.from.select`}
                     >
                       <SelectValue />
@@ -636,9 +617,9 @@ function ConversionsTab({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="text-slate-500 text-sm pb-1.5">→</div>
+                <div className="text-gray-400 text-sm pb-1.5">→</div>
                 <div className="w-28">
-                  <Label className="text-xs text-slate-400">To</Label>
+                  <Label className="text-xs text-gray-500">To</Label>
                   <Select
                     value={state.to}
                     onValueChange={(v) =>
@@ -649,7 +630,7 @@ function ConversionsTab({
                     }
                   >
                     <SelectTrigger
-                      className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100"
+                      className="h-8 text-xs bg-white border-gray-200 text-gray-800"
                       data-ocid={`conversion.${conv.label.toLowerCase()}.to.select`}
                     >
                       <SelectValue />
@@ -667,7 +648,7 @@ function ConversionsTab({
                   size="sm"
                   onClick={handleCalc}
                   data-ocid={`conversion.${conv.label.toLowerCase()}.calculate.button`}
-                  className="h-8 text-xs bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white border-0 pb-0 mb-0"
+                  className="h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white border-0 pb-0 mb-0"
                 >
                   Convert
                 </Button>
@@ -676,15 +657,15 @@ function ConversionsTab({
                 <div
                   className="mt-2 rounded-lg p-2 flex items-center justify-between"
                   style={{
-                    background: "rgba(139,92,246,0.08)",
-                    border: "1px solid rgba(139,92,246,0.25)",
+                    background: "#F5F3FF",
+                    border: "1px solid #DDD6FE",
                   }}
                   data-ocid={`conversion.${conv.label.toLowerCase()}.result.panel`}
                 >
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-gray-500">
                     {state.val} {state.from} =
                   </span>
-                  <span className="text-sm font-bold font-mono text-violet-300">
+                  <span className="text-sm font-bold font-mono text-violet-700">
                     {result} {state.to}
                   </span>
                 </div>
@@ -777,25 +758,21 @@ function StatisticsTab({
   return (
     <div className="space-y-4">
       <Card
-        className="border-0"
-        style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(45,180,210,0.12)",
-          borderLeft: "3px solid rgba(14,165,233,0.5)",
-        }}
+        className="border border-gray-200 bg-white shadow-sm"
+        style={{ borderLeft: "3px solid #0EA5E9" }}
       >
         <CardContent className="p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-100">
+          <h3 className="text-sm font-semibold text-gray-800">
             Descriptive Statistics
           </h3>
           <div
-            className="px-2 py-1 rounded text-xs font-mono text-teal-300"
-            style={{ background: "rgba(45,212,191,0.08)" }}
+            className="px-2 py-1 rounded text-xs font-mono text-sky-700"
+            style={{ background: "#F0F9FF" }}
           >
             Mean, SD, Variance, RSD%, CV%, Median, Mode
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-slate-400">
+            <Label className="text-xs text-gray-500">
               Values (comma or space separated)
             </Label>
             <Textarea
@@ -803,14 +780,14 @@ function StatisticsTab({
               value={rawValues}
               onChange={(e) => setRawValues(e.target.value)}
               data-ocid="stats.values.textarea"
-              className="text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600 h-16 resize-none"
+              className="text-xs bg-white border-gray-200 text-gray-800 placeholder:text-gray-400 h-16 resize-none"
             />
           </div>
           <Button
             size="sm"
             onClick={calcStats}
             data-ocid="stats.calculate.button"
-            className="w-full h-8 text-xs bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-500 hover:to-blue-500 text-white border-0"
+            className="w-full h-8 text-xs bg-sky-400 hover:bg-sky-500 text-white border-0"
           >
             Calculate All
           </Button>
@@ -819,8 +796,8 @@ function StatisticsTab({
             <div
               className="rounded-lg p-3 space-y-1.5"
               style={{
-                background: "rgba(45,212,191,0.05)",
-                border: "1px solid rgba(45,212,191,0.2)",
+                background: "#F0F9FF",
+                border: "1px solid #BAE6FD",
               }}
               data-ocid="stats.result.panel"
             >
@@ -829,8 +806,8 @@ function StatisticsTab({
                   key={k}
                   className="flex justify-between items-center text-xs"
                 >
-                  <span className="text-slate-400">{k}</span>
-                  <span className="font-mono font-semibold text-teal-300">
+                  <span className="text-gray-500">{k}</span>
+                  <span className="font-mono font-semibold text-sky-700">
                     {v}
                   </span>
                 </div>
@@ -905,20 +882,16 @@ function QuadraticCard({
 
   return (
     <Card
-      className="border-0"
-      style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(45,180,210,0.12)",
-        borderLeft: "3px solid rgba(99,102,241,0.5)",
-      }}
+      className="border border-gray-200 bg-white shadow-sm"
+      style={{ borderLeft: "3px solid #6366F1" }}
     >
       <CardContent className="p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-slate-100">
+        <h3 className="text-sm font-semibold text-gray-800">
           Quadratic Formula
         </h3>
         <div
-          className="px-2 py-1 rounded text-xs font-mono text-indigo-300"
-          style={{ background: "rgba(99,102,241,0.08)" }}
+          className="px-2 py-1 rounded text-xs font-mono text-indigo-600"
+          style={{ background: "#EEF2FF" }}
         >
           x = (−b ± √(b²−4ac)) / 2a
         </div>
@@ -929,14 +902,14 @@ function QuadraticCard({
             { val: c, set: setC, label: "c" },
           ].map(({ val, set, label }) => (
             <div key={label} className="space-y-1">
-              <Label className="text-xs text-slate-400">{label}</Label>
+              <Label className="text-xs text-gray-500">{label}</Label>
               <Input
                 type="number"
                 placeholder="0"
                 value={val}
                 onChange={(e) => set(e.target.value)}
                 data-ocid={`quadratic.${label}.input`}
-                className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600"
+                className="h-8 text-xs bg-white border-gray-200 text-gray-800 placeholder:text-gray-400"
               />
             </div>
           ))}
@@ -945,16 +918,16 @@ function QuadraticCard({
           size="sm"
           onClick={calc}
           data-ocid="quadratic.calculate.button"
-          className="w-full h-8 text-xs bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white border-0"
+          className="w-full h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white border-0"
         >
           Solve
         </Button>
         {roots && (
           <div
-            className="rounded-lg p-3 text-xs font-mono text-indigo-300 text-center"
+            className="rounded-lg p-3 text-xs font-mono text-indigo-700 text-center"
             style={{
-              background: "rgba(99,102,241,0.08)",
-              border: "1px solid rgba(99,102,241,0.25)",
+              background: "#EEF2FF",
+              border: "1px solid #C7D2FE",
             }}
             data-ocid="quadratic.result.panel"
           >
@@ -1002,28 +975,24 @@ function DilutionCard({
 
   return (
     <Card
-      className="border-0"
-      style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(45,180,210,0.12)",
-        borderLeft: "3px solid rgba(16,185,129,0.5)",
-      }}
+      className="border border-gray-200 bg-white shadow-sm"
+      style={{ borderLeft: "3px solid #10B981" }}
     >
       <CardContent className="p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-slate-100">
+        <h3 className="text-sm font-semibold text-gray-800">
           Dilution (C₁V₁ = C₂V₂)
         </h3>
         <div
-          className="px-2 py-1 rounded text-xs font-mono text-emerald-300"
-          style={{ background: "rgba(16,185,129,0.08)" }}
+          className="px-2 py-1 rounded text-xs font-mono text-emerald-700"
+          style={{ background: "#ECFDF5" }}
         >
           C₁V₁ = C₂V₂ — solve for any variable
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-slate-400">Solve for</Label>
+          <Label className="text-xs text-gray-500">Solve for</Label>
           <Select value={solveFor} onValueChange={setSolveFor}>
             <SelectTrigger
-              className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100"
+              className="h-8 text-xs bg-white border-gray-200 text-gray-800"
               data-ocid="dilution.solvfor.select"
             >
               <SelectValue />
@@ -1039,7 +1008,7 @@ function DilutionCard({
         <div className="grid grid-cols-2 gap-2">
           {["c1", "v1", "c2", "v2"].map((k) => (
             <div key={k} className="space-y-1">
-              <Label className="text-xs text-slate-400">
+              <Label className="text-xs text-gray-500">
                 {k === "c1"
                   ? "C₁"
                   : k === "v1"
@@ -1048,7 +1017,7 @@ function DilutionCard({
                       ? "C₂"
                       : "V₂"}
                 {solveFor === k && (
-                  <span className="ml-1 text-emerald-400">(solving)</span>
+                  <span className="ml-1 text-emerald-600">(solving)</span>
                 )}
               </Label>
               <Input
@@ -1062,7 +1031,7 @@ function DilutionCard({
                   setVals((prev) => ({ ...prev, [k]: e.target.value }))
                 }
                 data-ocid={`dilution.${k}.input`}
-                className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600 disabled:opacity-40"
+                className="h-8 text-xs bg-white border-gray-200 text-gray-800 placeholder:text-gray-400 disabled:opacity-50"
               />
             </div>
           ))}
@@ -1071,7 +1040,7 @@ function DilutionCard({
           size="sm"
           onClick={calc}
           data-ocid="dilution.calculate.button"
-          className="w-full h-8 text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0"
+          className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-0"
         >
           Calculate
         </Button>
@@ -1079,12 +1048,12 @@ function DilutionCard({
           <div
             className="rounded-lg p-2 text-center"
             style={{
-              background: "rgba(16,185,129,0.08)",
-              border: "1px solid rgba(16,185,129,0.25)",
+              background: "#ECFDF5",
+              border: "1px solid #A7F3D0",
             }}
             data-ocid="dilution.result.panel"
           >
-            <span className="text-sm font-bold font-mono text-emerald-300">
+            <span className="text-sm font-bold font-mono text-emerald-700">
               {solveFor.toUpperCase()} = {result}
             </span>
           </div>
@@ -1142,37 +1111,33 @@ function ContentUniformityCard({
 
   return (
     <Card
-      className="border-0"
-      style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(45,180,210,0.12)",
-        borderLeft: "3px solid rgba(245,158,11,0.5)",
-      }}
+      className="border border-gray-200 bg-white shadow-sm"
+      style={{ borderLeft: "3px solid #F59E0B" }}
     >
       <CardContent className="p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-slate-100">
+        <h3 className="text-sm font-semibold text-gray-800">
           Content Uniformity
         </h3>
         <div
-          className="px-2 py-1 rounded text-xs font-mono text-amber-300"
-          style={{ background: "rgba(245,158,11,0.08)" }}
+          className="px-2 py-1 rounded text-xs font-mono text-amber-700"
+          style={{ background: "#FFFBEB" }}
         >
           USP: RSD ≤ 6%, all units 85–115% of label claim
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <Label className="text-xs text-slate-400">Label Claim (mg)</Label>
+            <Label className="text-xs text-gray-500">Label Claim (mg)</Label>
             <Input
               type="number"
               placeholder="100"
               value={labelClaim}
               onChange={(e) => setLabelClaim(e.target.value)}
               data-ocid="cuniformity.labelclaim.input"
-              className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600"
+              className="h-8 text-xs bg-white border-gray-200 text-gray-800 placeholder:text-gray-400"
             />
           </div>
           <div className="space-y-1 col-span-2">
-            <Label className="text-xs text-slate-400">
+            <Label className="text-xs text-gray-500">
               Measured values (comma separated)
             </Label>
             <Textarea
@@ -1180,7 +1145,7 @@ function ContentUniformityCard({
               value={rawValues}
               onChange={(e) => setRawValues(e.target.value)}
               data-ocid="cuniformity.values.textarea"
-              className="text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600 h-14 resize-none"
+              className="text-xs bg-white border-gray-200 text-gray-800 placeholder:text-gray-400 h-14 resize-none"
             />
           </div>
         </div>
@@ -1188,7 +1153,7 @@ function ContentUniformityCard({
           size="sm"
           onClick={calc}
           data-ocid="cuniformity.calculate.button"
-          className="w-full h-8 text-xs bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white border-0"
+          className="w-full h-8 text-xs bg-amber-500 hover:bg-amber-600 text-white border-0"
         >
           Check Uniformity
         </Button>
@@ -1196,42 +1161,40 @@ function ContentUniformityCard({
           <div
             className="rounded-lg p-3 space-y-2"
             style={{
-              background: result.pass
-                ? "rgba(16,185,129,0.08)"
-                : "rgba(239,68,68,0.08)",
-              border: `1px solid ${result.pass ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`,
+              background: result.pass ? "#ECFDF5" : "#FEF2F2",
+              border: `1px solid ${result.pass ? "#A7F3D0" : "#FECACA"}`,
             }}
             data-ocid="cuniformity.result.panel"
           >
             <div className="flex justify-between items-center">
-              <span className="text-xs text-slate-400">Verdict</span>
+              <span className="text-xs text-gray-500">Verdict</span>
               <Badge
                 className={
                   result.pass
-                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                    : "bg-red-500/20 text-red-300 border-red-500/30"
+                    ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                    : "bg-red-100 text-red-700 border-red-200"
                 }
               >
                 {result.pass ? "PASS" : "FAIL"}
               </Badge>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Mean</span>
-              <span className="font-mono text-teal-300">{result.mean}%</span>
+              <span className="text-gray-500">Mean</span>
+              <span className="font-mono text-emerald-700">{result.mean}%</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">RSD</span>
+              <span className="text-gray-500">RSD</span>
               <span
-                className={`font-mono ${Number.parseFloat(result.rsd) <= 6 ? "text-emerald-300" : "text-red-300"}`}
+                className={`font-mono ${Number.parseFloat(result.rsd) <= 6 ? "text-emerald-700" : "text-red-600"}`}
               >
                 {result.rsd}%
               </span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">85–115% range</span>
+              <span className="text-gray-500">85–115% range</span>
               <span
                 className={
-                  result.allInRange ? "text-emerald-300" : "text-red-300"
+                  result.allInRange ? "text-emerald-700" : "text-red-600"
                 }
               >
                 {result.allInRange ? "All in range" : "Out of range"}
@@ -1256,17 +1219,11 @@ function HistoryPanel({
   onRestore: (e: HistoryEntry) => void;
 }) {
   return (
-    <Card
-      className="border-0"
-      style={{
-        background: "linear-gradient(135deg, #0d2137 0%, #0a1628 100%)",
-        border: "1px solid rgba(45,180,210,0.2)",
-      }}
-    >
+    <Card className="border border-gray-200 bg-white shadow-sm">
       <CardHeader className="py-3 px-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-slate-100 text-sm font-semibold flex items-center gap-2">
-            <FlaskConical className="h-4 w-4 text-teal-400" />
+          <CardTitle className="text-gray-800 text-sm font-semibold flex items-center gap-2">
+            <FlaskConical className="h-4 w-4 text-indigo-500" />
             Calculation History
           </CardTitle>
           {history.length > 0 && (
@@ -1275,7 +1232,7 @@ function HistoryPanel({
               variant="ghost"
               onClick={onClear}
               data-ocid="history.clear.button"
-              className="h-7 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-2"
+              className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50 px-2"
             >
               <RotateCcw className="h-3 w-3 mr-1" />
               Clear
@@ -1286,7 +1243,7 @@ function HistoryPanel({
       <CardContent className="px-4 pb-4">
         {history.length === 0 ? (
           <div
-            className="text-center py-8 text-xs text-slate-600"
+            className="text-center py-8 text-xs text-gray-400"
             data-ocid="history.empty_state"
           >
             No calculations yet
@@ -1300,28 +1257,27 @@ function HistoryPanel({
                 type="button"
                 onClick={() => onRestore(entry)}
                 data-ocid={`history.item.${i + 1}`}
-                className="w-full text-left rounded-lg p-2 transition-colors hover:bg-white/5 group"
-                style={{ border: "1px solid rgba(45,180,210,0.08)" }}
+                className="w-full text-left rounded-lg p-2 transition-colors hover:bg-gray-50 group border border-gray-100"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="text-[10px] text-slate-500 font-mono truncate">
+                    <div className="text-[10px] text-gray-400 font-mono truncate">
                       {entry.expression}
                     </div>
-                    <div className="text-xs font-bold font-mono text-teal-300 truncate">
+                    <div className="text-xs font-bold font-mono text-indigo-600 truncate">
                       = {entry.result}
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
                     {entry.category && (
                       <Badge
-                        className="text-[9px] px-1 py-0 bg-slate-700/50 text-slate-400 border-0"
+                        className="text-[9px] px-1 py-0 bg-gray-100 text-gray-500 border-gray-200"
                         variant="outline"
                       >
                         {entry.category}
                       </Badge>
                     )}
-                    <div className="text-[9px] text-slate-600 mt-0.5">
+                    <div className="text-[9px] text-gray-400 mt-0.5">
                       {entry.timestamp.toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -1365,30 +1321,20 @@ export function Calculator() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <div
-              className="h-8 w-8 rounded-lg flex items-center justify-center"
-              style={{
-                background: "linear-gradient(135deg, #84cc16, #14b8a6)",
-                boxShadow: "0 0 12px rgba(132,204,22,0.3)",
-              }}
+              className="h-8 w-8 rounded-lg flex items-center justify-center bg-indigo-600"
+              style={{ boxShadow: "0 2px 8px rgba(67,56,202,0.3)" }}
             >
               <Sigma className="h-4 w-4 text-white" />
             </div>
             Formula Calculator
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5">
             Scientific · Statistical · Chemistry · Pharma · Conversions
           </p>
         </div>
-        <Badge
-          className="text-xs"
-          style={{
-            background: "rgba(132,204,22,0.1)",
-            color: "#84cc16",
-            border: "1px solid rgba(132,204,22,0.3)",
-          }}
-        >
+        <Badge className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200">
           All Formula Types
         </Badge>
       </div>
@@ -1407,21 +1353,15 @@ export function Calculator() {
 
         {/* Right: Formula Library */}
         <div>
-          <Card
-            className="border-0"
-            style={{
-              background: "linear-gradient(135deg, #0d2137 0%, #0a1628 100%)",
-              border: "1px solid rgba(45,180,210,0.2)",
-            }}
-          >
+          <Card className="border border-gray-200 bg-white shadow-sm">
             <CardHeader className="pb-0 px-4 pt-4">
-              <CardTitle className="text-slate-100 text-sm font-semibold">
+              <CardTitle className="text-gray-800 text-sm font-semibold">
                 Formula Library
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4">
               <Tabs defaultValue="basic" data-ocid="calculator.library.tab">
-                <TabsList className="w-full grid grid-cols-6 h-8 bg-[#0a1628] border border-teal-500/20 mb-4">
+                <TabsList className="w-full grid grid-cols-6 h-8 bg-gray-100 border border-gray-200 mb-4">
                   {[
                     "basic",
                     "scientific",
@@ -1434,7 +1374,7 @@ export function Calculator() {
                       key={tab}
                       value={tab}
                       data-ocid={`calculator.${tab}.tab`}
-                      className="text-[10px] capitalize data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300"
+                      className="text-[10px] capitalize data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm text-gray-500"
                     >
                       {tab === "statistical"
                         ? "Stats"

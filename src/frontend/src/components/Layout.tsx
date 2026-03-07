@@ -6,7 +6,10 @@ import { TopHeader } from "./TopHeader";
 
 export function Layout() {
   return (
-    <div className="flex min-h-screen bg-background relative">
+    <div
+      className="flex min-h-screen relative"
+      style={{ background: "#F9FAFB" }}
+    >
       {/* Full-page DKR LIMS watermark */}
       <div
         className="fixed inset-0 pointer-events-none z-0"
