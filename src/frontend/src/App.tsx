@@ -11,6 +11,7 @@ import { RoleProvider } from "./contexts/RoleContext";
 import { AdminPanel } from "./pages/AdminPanel";
 import { Analysis } from "./pages/Analysis";
 import { COA } from "./pages/COA";
+import { Calculator } from "./pages/Calculator";
 import { Dashboard } from "./pages/Dashboard";
 import { EligibilityCheck } from "./pages/EligibilityCheck";
 import { MyTasks } from "./pages/MyTasks";
@@ -159,6 +160,11 @@ const testMastersRoute = createRoute({
   path: "/test-masters",
   component: TestMasters,
 });
+const calculatorRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/calculator",
+  component: Calculator,
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -182,6 +188,7 @@ const routeTree = rootRoute.addChildren([
   reportsRoute,
   adminRoute,
   testMastersRoute,
+  calculatorRoute,
 ]);
 
 const router = createRouter({ routeTree });

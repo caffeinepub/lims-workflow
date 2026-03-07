@@ -1,27 +1,37 @@
-# LIMS Workflow
+# DKR LIMS Workflow
 
 ## Current State
-Section In-Charge Review (`SICReview.tsx`) and QA Review (`QAReview.tsx`) pages exist but use a minimal card-based layout: plain results table, signature input, return reason textarea, and action buttons. They do not match the reference design from coa_page.PNG.
+The Dashboard page exists with stats cards, a workflow pipeline strip, tabbed bar/donut charts, a Camunda BPM widget, a Recent Samples table, and a My Tasks Today panel. The design uses a teal-to-blue sidebar, card-based layout, and colored left-border accents on stat cards.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Full-page two-column layout for both SICReview and QAReview:
-  - Left column (main): White "Document Preview" panel containing a rendered COA certificate exactly matching coa_page.PNG — Certificate of Analysis header with blue title, ISO 9001:2015 CERTIFIED badge, document ID (COA-2024-8842-V1.2), Global Pharma Labs Inc. address block, product metadata grid (Product Name, Sample Type, Batch Number, Manufacturing Date, Expiry Date, Sample Date), Analytical Test Results table (Test Parameter / Specification / Result / Method / Status columns with PASS badges), Reviewer Remarks block (italic text), dual signature area (cursive left = Section InCharge signed + dotted-underline right = "Waiting for QA Approval" placeholder on SICReview / both signed on QAReview), compliance footer line and "Page 1 of 1"
-  - Right column (sidebar): Pending Review badge + Due in X hrs, QA/SIC Approval Block (card with comments textarea + Reject COA / Approve buttons), COA Document Lineage accordion (v1.2 active with bullet changes + v1.1 superseded), Stakeholder Log (3 users: Rajesh Malhotra Analyst Verified, Amit Singh Section Head Verified, Sarah Chen QA Head Awaiting/Verified), Related Batch Documents link, Raw Test Data Log link
-- Compliance Verification banner at page bottom (blue shield icon, text about automated cross-validation, "View Complete Chain of Custody" link)
-- Page header: breadcrumb (Dashboard / COA Review), "Final COA Management" title, Print Draft + Share Securely + Download PDF (v1.2) buttons, document ID pill, status/due badge
+- White header bar (#FFFFFF) with soft box-shadow
+- Very light gray page background (#F9FAFB)
+- Redesigned stat cards: soft pastel icon backgrounds (blue, orange, purple, green), no left border accent, neumorphic/glassmorphism shadow style
+- Workflow Pipeline section: pill-shaped connected steps with sample counts and "View Samples" links per stage
+- My Tasks panel: table layout (task, sample ID, stage, due time, action buttons)
+- Recent Samples panel: table (sample ID, customer, sample type, date, COA dropdown)
+- Right-side vertical utility panel: Recent Activities/Audit Log, Quick Tools (Unit Converter, Percentage Calculator, Currency Converter, Scientific Calculator), Shortcuts, Help, Settings sections
+- Sample Distribution bar chart (bottom section)
+- Camunda BPM Status progress indicators (bottom section)
 
 ### Modify
-- SICReview.tsx — replace current layout with the new two-column COA preview + sidebar layout; Section InCharge approves or rejects COA via sidebar block; approval advances to QAReview, rejection returns to Analysis
-- QAReview.tsx — same layout but Sarah Chen is the active reviewer; on approve, Sarah Chen signature fills in the right signature slot and her Stakeholder Log entry flips from "Awaiting" to "Verified"; on reject, returns to SICReview
-- Approval comments field is required before rejecting; approval requires comments to be recorded in audit log
+- Dashboard layout: change from single-column to main content + right utility sidebar (3-col grid)
+- Stat cards: remove colored left borders, add soft pastel icon containers, minimal typography style
+- Overall background: from bg-background to #F9FAFB
+- Chart section: move to bottom, side by side with Camunda BPM
 
 ### Remove
-- Old plain card layout, standalone signature input card, separate return-reason card in both pages
+- Tabbed bar/donut chart in the center (move to bottom)
+- Hero/greeting banner (already removed in v16)
 
 ## Implementation Plan
-1. Rewrite SICReview.tsx with full two-column layout: left COA certificate preview (static/read-only data from mockData), right sidebar with approval block + lineage + stakeholder log + links + compliance banner
-2. Rewrite QAReview.tsx with same layout; QA Head active reviewer; signature slot updates on approve
-3. Keep all existing workflow logic (status transitions, AUDIT_LOG push, toast, navigate) intact
-4. Apply deterministic data-ocid markers to all interactive surfaces
+1. Redesign Dashboard.tsx with new 3-column layout: main content (left 2/3) + right utility sidebar (1/3)
+2. New stat cards with pastel icon colors (blue/orange/purple/green), soft shadows, minimal type
+3. Workflow Pipeline: horizontal connected pill steps with chevrons, sample counts, "View Samples" link per stage
+4. My Tasks table panel: columns — Task, Sample ID, Stage badge, Due Time, Action button
+5. Recent Samples table panel: columns — Sample ID, Customer, Sample Type, Date, COA dropdown button
+6. Bottom row: Sample Distribution bar chart (left) + Camunda BPM Status (right)
+7. Right utility sidebar: Recent Activities list, Quick Tools grid (4 tool cards), Shortcuts list, Help + Settings links
+8. Apply #F9FAFB page background and white card surfaces

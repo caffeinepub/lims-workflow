@@ -9,25 +9,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Activity,
+  Calculator,
   ChevronDown,
   Clock,
+  ExternalLink,
   LogOut,
-  Server,
   Shield,
   Timer,
   User,
   UserCheck,
 } from "lucide-react";
 import type React from "react";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRole } from "../contexts/RoleContext";
 import { DUMMY_USERS } from "../lib/mockData";
 
@@ -180,6 +188,237 @@ function StatPill({
   );
 }
 
+// ─── Safe Evaluator ──────────────────────────────────────────────────────────
+
+function safeEvalHeader(expr: string): string {
+  try {
+    const sanitized = expr
+      .replace(/×/g, "*")
+      .replace(/÷/g, "/")
+      .replace(/−/g, "-")
+      .replace(/π/g, String(Math.PI))
+      .replace(/e(?![0-9])/g, String(Math.E))
+      .replace(/sin\(/g, "Math.sin(Math.PI/180*")
+      .replace(/cos\(/g, "Math.cos(Math.PI/180*")
+      .replace(/tan\(/g, "Math.tan(Math.PI/180*")
+      .replace(/log\(/g, "Math.log10(")
+      .replace(/ln\(/g, "Math.log(")
+      .replace(/√\(/g, "Math.sqrt(")
+      .replace(/\^/g, "**");
+    // eslint-disable-next-line no-new-func
+    const result = new Function(`"use strict"; return (${sanitized})`)();
+    if (typeof result !== "number" || !Number.isFinite(result)) return "Error";
+    return String(Number.parseFloat(result.toPrecision(12)));
+  } catch {
+    return "Error";
+  }
+}
+
+// ─── QuickCalculator Popover ──────────────────────────────────────────────────
+
+function QuickCalculator() {
+  const navigate = useNavigate();
+  const [expr, setExpr] = useState("");
+  const [result, setResult] = useState("0");
+  const [history, setHistory] = useState<{ expr: string; result: string }[]>(
+    [],
+  );
+  const [justEval, setJustEval] = useState(false);
+
+  const append = useCallback(
+    (val: string) => {
+      if (justEval && /^[0-9(π]$/.test(val)) {
+        setExpr(val);
+        setResult("0");
+        setJustEval(false);
+        return;
+      }
+      setJustEval(false);
+      setExpr((prev) => prev + val);
+    },
+    [justEval],
+  );
+
+  const evaluate = useCallback(() => {
+    if (!expr) return;
+    const res = safeEvalHeader(expr);
+    setResult(res);
+    if (res !== "Error") {
+      setHistory((prev) => [...prev.slice(-4), { expr, result: res }]);
+      setJustEval(true);
+    }
+  }, [expr]);
+
+  const clear = () => {
+    setExpr("");
+    setResult("0");
+    setJustEval(false);
+  };
+  const backspace = () => {
+    setExpr((prev) => prev.slice(0, -1));
+    setJustEval(false);
+  };
+
+  useEffect(() => {
+    if (expr) {
+      const r = safeEvalHeader(expr);
+      if (r !== "Error") setResult(r);
+    }
+  }, [expr]);
+
+  type BtnType = "num" | "op" | "sci" | "eq" | "fn";
+  const btns: { label: string; action: () => void; type: BtnType }[] = [
+    { label: "C", action: clear, type: "fn" },
+    { label: "⌫", action: backspace, type: "fn" },
+    { label: "sin", action: () => append("sin("), type: "sci" },
+    { label: "cos", action: () => append("cos("), type: "sci" },
+    { label: "tan", action: () => append("tan("), type: "sci" },
+    { label: "log", action: () => append("log("), type: "sci" },
+    { label: "ln", action: () => append("ln("), type: "sci" },
+    { label: "√", action: () => append("√("), type: "sci" },
+    { label: "π", action: () => append("π"), type: "sci" },
+    { label: "e", action: () => append("e"), type: "sci" },
+    { label: "(", action: () => append("("), type: "op" },
+    { label: ")", action: () => append(")"), type: "op" },
+    { label: "7", action: () => append("7"), type: "num" },
+    { label: "8", action: () => append("8"), type: "num" },
+    { label: "9", action: () => append("9"), type: "num" },
+    { label: "÷", action: () => append("÷"), type: "op" },
+    { label: "4", action: () => append("4"), type: "num" },
+    { label: "5", action: () => append("5"), type: "num" },
+    { label: "6", action: () => append("6"), type: "num" },
+    { label: "×", action: () => append("×"), type: "op" },
+    { label: "1", action: () => append("1"), type: "num" },
+    { label: "2", action: () => append("2"), type: "num" },
+    { label: "3", action: () => append("3"), type: "num" },
+    { label: "−", action: () => append("−"), type: "op" },
+    { label: "0", action: () => append("0"), type: "num" },
+    { label: ".", action: () => append("."), type: "num" },
+    { label: "%", action: () => append("%"), type: "op" },
+    { label: "+", action: () => append("+"), type: "op" },
+    { label: "=", action: evaluate, type: "eq" },
+  ];
+
+  const btnClass = (type: BtnType) => {
+    switch (type) {
+      case "num":
+        return "bg-[#0f1f35] hover:bg-[#162a45] border border-teal-500/20 text-slate-100";
+      case "op":
+        return "bg-[#0a1628] hover:bg-teal-500/20 border border-teal-500/30 text-teal-300";
+      case "sci":
+        return "bg-[#0d1a30] hover:bg-indigo-500/20 border border-indigo-500/25 text-indigo-300 text-[10px]";
+      case "fn":
+        return "bg-[#1a0e1e] hover:bg-rose-500/20 border border-rose-500/30 text-rose-300";
+      case "eq":
+        return "bg-gradient-to-br from-emerald-500 to-teal-500 text-white font-bold";
+      default:
+        return "";
+    }
+  };
+
+  return (
+    <div className="space-y-3 p-1" data-ocid="header.calculator.popover">
+      {/* Display */}
+      <div
+        className="rounded-lg p-3 space-y-0.5"
+        style={{
+          background: "rgba(0,0,0,0.4)",
+          border: "1px solid rgba(45,180,210,0.15)",
+        }}
+      >
+        <div className="text-right text-[10px] font-mono text-slate-500 truncate min-h-[14px]">
+          {expr || "0"}
+        </div>
+        <div className="text-right text-xl font-mono font-bold text-teal-300 truncate">
+          {result}
+        </div>
+      </div>
+
+      {/* Expression input */}
+      <Input
+        value={expr}
+        onChange={(e) => {
+          setExpr(e.target.value);
+          setJustEval(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") evaluate();
+        }}
+        placeholder="Type expression..."
+        data-ocid="header.calculator.input"
+        className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600 font-mono"
+      />
+
+      {/* Keypad */}
+      <div
+        className="grid grid-cols-4 gap-1"
+        data-ocid="header.calculator.keypad"
+      >
+        {btns.slice(0, 28).map((btn, i) => (
+          <button
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed static button array
+            key={i}
+            type="button"
+            onClick={btn.action}
+            className={`h-9 rounded-md text-xs font-semibold transition-all duration-100 active:scale-95 ${btnClass(btn.type)}`}
+          >
+            {btn.label}
+          </button>
+        ))}
+        {/* = button spans full width */}
+        <button
+          type="button"
+          onClick={evaluate}
+          className={`h-9 col-span-4 rounded-md text-sm font-bold transition-all duration-100 active:scale-95 ${btnClass("eq")}`}
+        >
+          =
+        </button>
+      </div>
+
+      {/* History */}
+      {history.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-[9px] text-slate-600 uppercase tracking-wide">
+            Recent
+          </p>
+          {[...history].reverse().map((h, i) => (
+            <button
+              // biome-ignore lint/suspicious/noArrayIndexKey: reversed ephemeral history items
+              key={i}
+              type="button"
+              onClick={() => {
+                setExpr(h.expr);
+                setResult(h.result);
+              }}
+              className="w-full text-left rounded px-2 py-1 hover:bg-white/5 transition-colors"
+              style={{ border: "1px solid rgba(45,180,210,0.08)" }}
+            >
+              <span className="text-[10px] font-mono text-slate-500">
+                {h.expr}
+              </span>
+              <span className="text-[10px] font-mono text-teal-300 ml-1">
+                = {h.result}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Open full calculator */}
+      <button
+        type="button"
+        onClick={() => navigate({ to: "/calculator" })}
+        data-ocid="header.calculator.open_full.button"
+        className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-medium text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 transition-colors"
+        style={{ border: "1px solid rgba(45,212,191,0.2)" }}
+      >
+        <ExternalLink className="h-3 w-3" />
+        Open Full Calculator
+      </button>
+    </div>
+  );
+}
+
 // ─── TopHeader ──────────────────────────────────────────────────────────────
 
 export function TopHeader() {
@@ -248,17 +487,52 @@ export function TopHeader() {
           color="text-indigo-400"
           tooltip={`Login date: ${formatLoginDate(loginTime)}`}
         />
-        <StatPill
-          icon={<Server className="h-3.5 w-3.5" />}
-          label="Environment"
-          value="Production"
-          color="text-emerald-400"
-          tooltip="Internet Computer — On-chain deployment"
-        />
       </div>
 
-      {/* Right: user dropdown + logout */}
+      {/* Right: calculator + user dropdown + logout */}
       <div className="flex items-center gap-2 shrink-0">
+        {/* Calculator popover */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    data-ocid="header.calculator.button"
+                    className="h-9 w-9 rounded-lg border hover:bg-teal-500/10 hover:border-teal-500/40 hover:text-teal-300 transition-colors text-slate-400"
+                    style={{ borderColor: "rgba(45,180,210,0.2)" }}
+                  >
+                    <Calculator className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  Formula Calculator
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            side="bottom"
+            className="w-[380px] p-3 border-0"
+            style={{
+              background: "linear-gradient(135deg, #0d2137 0%, #0a1628 100%)",
+              border: "1px solid rgba(45,180,210,0.25)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                <Calculator className="h-4 w-4 text-teal-400" />
+                Quick Calculator
+              </h3>
+            </div>
+            <QuickCalculator />
+          </PopoverContent>
+        </Popover>
+
         {/* User switcher dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

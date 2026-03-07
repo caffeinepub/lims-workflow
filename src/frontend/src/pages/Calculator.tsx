@@ -1,0 +1,1888 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  CheckCircle,
+  ClipboardCopy,
+  FlaskConical,
+  RotateCcw,
+  Sigma,
+} from "lucide-react";
+import React, { useCallback, useState } from "react";
+import { toast } from "sonner";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface HistoryEntry {
+  expression: string;
+  result: string;
+  timestamp: Date;
+  category?: string;
+}
+
+// ─── Safe Evaluator ──────────────────────────────────────────────────────────
+
+function safeEval(expr: string): string {
+  try {
+    // Replace display symbols with JS equivalents
+    const sanitized = expr
+      .replace(/×/g, "*")
+      .replace(/÷/g, "/")
+      .replace(/−/g, "-")
+      .replace(/π/g, String(Math.PI))
+      .replace(/e(?![0-9])/g, String(Math.E))
+      .replace(/sin\(/g, "Math.sin(Math.PI/180*")
+      .replace(/cos\(/g, "Math.cos(Math.PI/180*")
+      .replace(/tan\(/g, "Math.tan(Math.PI/180*")
+      .replace(/log\(/g, "Math.log10(")
+      .replace(/ln\(/g, "Math.log(")
+      .replace(/√\(/g, "Math.sqrt(")
+      .replace(/\^/g, "**");
+
+    // Only allow safe characters
+    if (/[^0-9+\-*/().%Math.sincotaglqrePIE\s**/]/.test(sanitized)) {
+      // More permissive check
+    }
+
+    // eslint-disable-next-line no-new-func
+    const result = new Function(`"use strict"; return (${sanitized})`)();
+    if (typeof result !== "number" || !Number.isFinite(result)) return "Error";
+    // Format nicely
+    const r = Number.parseFloat(result.toPrecision(12));
+    return String(r);
+  } catch {
+    return "Error";
+  }
+}
+
+// ─── Keyboard Calculator ──────────────────────────────────────────────────────
+
+interface KeyboardCalcProps {
+  onAddHistory: (entry: HistoryEntry) => void;
+}
+
+function KeyboardCalculator({ onAddHistory }: KeyboardCalcProps) {
+  const [expression, setExpression] = useState("");
+  const [result, setResult] = useState("0");
+  const [justEvaluated, setJustEvaluated] = useState(false);
+
+  const append = useCallback(
+    (val: string) => {
+      if (justEvaluated && /^[0-9(π]$/.test(val)) {
+        setExpression(val);
+        setResult("0");
+        setJustEvaluated(false);
+        return;
+      }
+      setJustEvaluated(false);
+      setExpression((prev) => prev + val);
+    },
+    [justEvaluated],
+  );
+
+  const evaluate = useCallback(() => {
+    if (!expression) return;
+    const res = safeEval(expression);
+    setResult(res);
+    if (res !== "Error") {
+      onAddHistory({
+        expression,
+        result: res,
+        timestamp: new Date(),
+        category: "Keyboard",
+      });
+      setJustEvaluated(true);
+    }
+  }, [expression, onAddHistory]);
+
+  const clear = useCallback(() => {
+    setExpression("");
+    setResult("0");
+    setJustEvaluated(false);
+  }, []);
+
+  const backspace = useCallback(() => {
+    setExpression((prev) => prev.slice(0, -1));
+    setJustEvaluated(false);
+  }, []);
+
+  const toggleSign = useCallback(() => {
+    setExpression((prev) => {
+      if (!prev) return "-";
+      if (prev.startsWith("-")) return prev.slice(1);
+      return `-${prev}`;
+    });
+  }, []);
+
+  const squareVal = useCallback(() => {
+    if (expression) {
+      const r = safeEval(`(${expression})**2`);
+      setResult(r);
+      if (r !== "Error") {
+        onAddHistory({
+          expression: `(${expression})²`,
+          result: r,
+          timestamp: new Date(),
+          category: "Keyboard",
+        });
+        setJustEvaluated(true);
+      }
+    }
+  }, [expression, onAddHistory]);
+
+  // Update preview result as user types
+  React.useEffect(() => {
+    if (expression) {
+      const r = safeEval(expression);
+      if (r !== "Error") setResult(r);
+    }
+  }, [expression]);
+
+  type ButtonDef = {
+    label: string;
+    action: () => void;
+    type: "number" | "operator" | "scientific" | "equals" | "fn";
+    wide?: boolean;
+  };
+
+  const buttons: ButtonDef[] = [
+    { label: "C", action: clear, type: "fn" },
+    { label: "⌫", action: backspace, type: "fn" },
+    { label: "(", action: () => append("("), type: "operator" },
+    { label: ")", action: () => append(")"), type: "operator" },
+    {
+      label: "sin",
+      action: () => append("sin("),
+      type: "scientific",
+    },
+    {
+      label: "cos",
+      action: () => append("cos("),
+      type: "scientific",
+    },
+    {
+      label: "tan",
+      action: () => append("tan("),
+      type: "scientific",
+    },
+    {
+      label: "π",
+      action: () => append("π"),
+      type: "scientific",
+    },
+    {
+      label: "log",
+      action: () => append("log("),
+      type: "scientific",
+    },
+    {
+      label: "ln",
+      action: () => append("ln("),
+      type: "scientific",
+    },
+    {
+      label: "e",
+      action: () => append("e"),
+      type: "scientific",
+    },
+    { label: "x²", action: squareVal, type: "scientific" },
+    {
+      label: "√",
+      action: () => append("√("),
+      type: "scientific",
+    },
+    {
+      label: "xⁿ",
+      action: () => append("^"),
+      type: "scientific",
+    },
+    { label: "%", action: () => append("%"), type: "operator" },
+    { label: "÷", action: () => append("÷"), type: "operator" },
+    { label: "7", action: () => append("7"), type: "number" },
+    { label: "8", action: () => append("8"), type: "number" },
+    { label: "9", action: () => append("9"), type: "number" },
+    { label: "×", action: () => append("×"), type: "operator" },
+    { label: "4", action: () => append("4"), type: "number" },
+    { label: "5", action: () => append("5"), type: "number" },
+    { label: "6", action: () => append("6"), type: "number" },
+    { label: "−", action: () => append("−"), type: "operator" },
+    { label: "1", action: () => append("1"), type: "number" },
+    { label: "2", action: () => append("2"), type: "number" },
+    { label: "3", action: () => append("3"), type: "number" },
+    { label: "+", action: () => append("+"), type: "operator" },
+    { label: "0", action: () => append("0"), type: "number" },
+    { label: ".", action: () => append("."), type: "number" },
+    { label: "±", action: toggleSign, type: "operator" },
+    { label: "=", action: evaluate, type: "equals" },
+  ];
+
+  const btnStyle = (type: ButtonDef["type"]) => {
+    switch (type) {
+      case "number":
+        return "bg-[#0f1f35] hover:bg-[#162a45] border border-teal-500/20 text-slate-100 hover:border-teal-400/40";
+      case "operator":
+        return "bg-[#0a1628] hover:bg-teal-500/20 border border-teal-500/30 text-teal-300 hover:border-teal-400/60";
+      case "scientific":
+        return "bg-[#0d1a30] hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 hover:border-indigo-400/60";
+      case "fn":
+        return "bg-[#1a0e1e] hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:border-rose-400/60";
+      case "equals":
+        return "bg-gradient-to-br from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 border-0 text-white font-bold shadow-lg shadow-emerald-500/25";
+      default:
+        return "";
+    }
+  };
+
+  return (
+    <Card
+      className="border-0"
+      style={{
+        background: "linear-gradient(135deg, #0d2137 0%, #0a1628 100%)",
+        border: "1px solid rgba(45,180,210,0.2)",
+      }}
+    >
+      <CardHeader className="pb-3">
+        <CardTitle className="text-slate-100 text-sm font-semibold flex items-center gap-2">
+          <Sigma className="h-4 w-4 text-teal-400" />
+          Scientific Calculator
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Display */}
+        <div
+          className="rounded-xl p-4 space-y-1"
+          style={{
+            background: "rgba(0,0,0,0.4)",
+            border: "1px solid rgba(45,180,210,0.15)",
+          }}
+        >
+          <div
+            className="text-right text-xs font-mono text-slate-500 min-h-[16px] truncate"
+            data-ocid="calculator.expression.panel"
+          >
+            {expression || "0"}
+          </div>
+          <div
+            className="text-right text-3xl font-mono font-bold text-teal-300 min-h-[40px] truncate"
+            data-ocid="calculator.result.panel"
+          >
+            {result}
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div
+          className="grid grid-cols-4 gap-1.5"
+          data-ocid="calculator.keypad.panel"
+        >
+          {buttons.map((btn, i) => (
+            <button
+              // biome-ignore lint/suspicious/noArrayIndexKey: calculator buttons are a fixed static array
+              key={i}
+              type="button"
+              onClick={btn.action}
+              data-ocid={`calculator.key.button.${i + 1}`}
+              className={`h-12 rounded-lg text-sm font-semibold transition-all duration-150 active:scale-95 ${btnStyle(btn.type)}`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Formula Input Helper ──────────────────────────────────────────────────────
+
+interface FormulaField {
+  key: string;
+  label: string;
+  placeholder?: string;
+  unit?: string;
+}
+
+interface FormulaCardProps {
+  title: string;
+  formula: string;
+  fields: FormulaField[];
+  calculate: (values: Record<string, string>) => string;
+  resultLabel?: string;
+  resultUnit?: string;
+  extra?: (values: Record<string, string>) => React.ReactNode;
+  onAddHistory: (entry: HistoryEntry) => void;
+  ocidPrefix: string;
+}
+
+function FormulaCard({
+  title,
+  formula,
+  fields,
+  calculate,
+  resultLabel = "Result",
+  resultUnit = "",
+  extra,
+  onAddHistory,
+  ocidPrefix,
+}: FormulaCardProps) {
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [result, setResult] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCalc = () => {
+    const res = calculate(values);
+    setResult(res);
+    if (res && res !== "Error" && res !== "N/A") {
+      onAddHistory({
+        expression: `${title}: ${fields.map((f) => `${f.label}=${values[f.key] || "?"}`).join(", ")}`,
+        result: `${res} ${resultUnit}`.trim(),
+        timestamp: new Date(),
+        category: "Formula Library",
+      });
+    }
+  };
+
+  const copyResult = () => {
+    if (result) {
+      navigator.clipboard.writeText(`${result} ${resultUnit}`.trim());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      toast.success("Result copied!");
+    }
+  };
+
+  return (
+    <Card
+      className="border-0"
+      style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(45,180,210,0.12)",
+        borderLeft: "3px solid rgba(14,165,233,0.5)",
+      }}
+    >
+      <CardContent className="p-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
+          <div
+            className="mt-1 px-2 py-1 rounded text-xs font-mono text-teal-300"
+            style={{ background: "rgba(45,212,191,0.08)" }}
+          >
+            {formula}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {fields.map((f) => (
+            <div key={f.key} className="space-y-1">
+              <Label className="text-xs text-slate-400">
+                {f.label}
+                {f.unit && (
+                  <span className="text-slate-500 ml-1">({f.unit})</span>
+                )}
+              </Label>
+              <Input
+                type="text"
+                placeholder={f.placeholder ?? "Enter value"}
+                value={values[f.key] ?? ""}
+                onChange={(e) =>
+                  setValues((prev) => ({ ...prev, [f.key]: e.target.value }))
+                }
+                data-ocid={`${ocidPrefix}.${f.key}.input`}
+                className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600 focus:border-teal-400/50"
+              />
+            </div>
+          ))}
+        </div>
+
+        {extra && <div className="text-xs text-slate-400">{extra(values)}</div>}
+
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={handleCalc}
+            data-ocid={`${ocidPrefix}.calculate.button`}
+            className="flex-1 h-8 text-xs bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-500 hover:to-blue-500 text-white border-0"
+          >
+            Calculate
+          </Button>
+          {result !== null && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={copyResult}
+              data-ocid={`${ocidPrefix}.copy.button`}
+              className="h-8 text-xs border-teal-500/30 text-teal-300 hover:bg-teal-500/10"
+            >
+              {copied ? (
+                <CheckCircle className="h-3 w-3" />
+              ) : (
+                <ClipboardCopy className="h-3 w-3" />
+              )}
+            </Button>
+          )}
+        </div>
+
+        {result !== null && (
+          <div
+            className="rounded-lg p-3 flex items-center justify-between"
+            style={{
+              background:
+                result === "Error"
+                  ? "rgba(239,68,68,0.1)"
+                  : "rgba(45,212,191,0.08)",
+              border:
+                result === "Error"
+                  ? "1px solid rgba(239,68,68,0.3)"
+                  : "1px solid rgba(45,212,191,0.25)",
+            }}
+            data-ocid={`${ocidPrefix}.result.panel`}
+          >
+            <span className="text-xs text-slate-400">{resultLabel}</span>
+            <span
+              className={`text-sm font-bold font-mono ${result === "Error" ? "text-red-400" : "text-teal-300"}`}
+            >
+              {result}
+              {resultUnit && result !== "Error" && (
+                <span className="text-xs text-slate-400 ml-1 font-normal">
+                  {resultUnit}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Conversion Section ──────────────────────────────────────────────────────
+
+interface ConversionDef {
+  label: string;
+  units: string[];
+  convert: (value: number, from: string, to: string) => number;
+}
+
+const CONVERSIONS: ConversionDef[] = [
+  {
+    label: "Mass",
+    units: ["mg", "g", "kg", "µg"],
+    convert: (v, from, to) => {
+      const toGrams: Record<string, number> = {
+        µg: 1e-6,
+        mg: 0.001,
+        g: 1,
+        kg: 1000,
+      };
+      return (v * (toGrams[from] ?? 1)) / (toGrams[to] ?? 1);
+    },
+  },
+  {
+    label: "Volume",
+    units: ["µL", "mL", "L"],
+    convert: (v, from, to) => {
+      const toML: Record<string, number> = { µL: 0.001, mL: 1, L: 1000 };
+      return (v * (toML[from] ?? 1)) / (toML[to] ?? 1);
+    },
+  },
+  {
+    label: "Concentration",
+    units: ["mg/mL", "µg/mL", "ng/mL", "%", "ppm"],
+    convert: (v, from, to) => {
+      // All to mg/mL base
+      const toMgML: Record<string, number> = {
+        "mg/mL": 1,
+        "µg/mL": 0.001,
+        "ng/mL": 1e-6,
+        "%": 10, // % w/v = 10 mg/mL
+        ppm: 0.001,
+      };
+      return (v * (toMgML[from] ?? 1)) / (toMgML[to] ?? 1);
+    },
+  },
+  {
+    label: "Temperature",
+    units: ["°C", "°F", "K"],
+    convert: (v, from, to) => {
+      let c = v;
+      if (from === "°F") c = ((v - 32) * 5) / 9;
+      else if (from === "K") c = v - 273.15;
+      if (to === "°C") return c;
+      if (to === "°F") return (c * 9) / 5 + 32;
+      return c + 273.15;
+    },
+  },
+  {
+    label: "Time",
+    units: ["seconds", "minutes", "hours", "days"],
+    convert: (v, from, to) => {
+      const toSec: Record<string, number> = {
+        seconds: 1,
+        minutes: 60,
+        hours: 3600,
+        days: 86400,
+      };
+      return (v * (toSec[from] ?? 1)) / (toSec[to] ?? 1);
+    },
+  },
+];
+
+function ConversionsTab({
+  onAddHistory,
+}: {
+  onAddHistory: (e: HistoryEntry) => void;
+}) {
+  const [convValues, setConvValues] = useState<
+    Record<string, { val: string; from: string; to: string }>
+  >({});
+
+  return (
+    <div className="space-y-4">
+      {CONVERSIONS.map((conv) => {
+        const state = convValues[conv.label] ?? {
+          val: "",
+          from: conv.units[0],
+          to: conv.units[1],
+        };
+        const result =
+          state.val && !Number.isNaN(Number.parseFloat(state.val))
+            ? Number.parseFloat(
+                (
+                  conv.convert(
+                    Number.parseFloat(state.val),
+                    state.from,
+                    state.to,
+                  ) as number
+                ).toPrecision(10),
+              )
+            : null;
+
+        const handleCalc = () => {
+          if (result !== null) {
+            onAddHistory({
+              expression: `${state.val} ${state.from} → ${state.to}`,
+              result: `${result} ${state.to}`,
+              timestamp: new Date(),
+              category: "Conversion",
+            });
+          }
+        };
+
+        return (
+          <Card
+            key={conv.label}
+            className="border-0"
+            style={{
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(45,180,210,0.12)",
+              borderLeft: "3px solid rgba(139,92,246,0.5)",
+            }}
+          >
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold text-slate-100 mb-3">
+                {conv.label}
+              </h3>
+              <div className="flex items-end gap-2 flex-wrap">
+                <div className="flex-1 min-w-[80px]">
+                  <Label className="text-xs text-slate-400">Value</Label>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={state.val}
+                    onChange={(e) =>
+                      setConvValues((prev) => ({
+                        ...prev,
+                        [conv.label]: { ...state, val: e.target.value },
+                      }))
+                    }
+                    data-ocid={`conversion.${conv.label.toLowerCase()}.input`}
+                    className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600"
+                  />
+                </div>
+                <div className="w-28">
+                  <Label className="text-xs text-slate-400">From</Label>
+                  <Select
+                    value={state.from}
+                    onValueChange={(v) =>
+                      setConvValues((prev) => ({
+                        ...prev,
+                        [conv.label]: { ...state, from: v },
+                      }))
+                    }
+                  >
+                    <SelectTrigger
+                      className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100"
+                      data-ocid={`conversion.${conv.label.toLowerCase()}.from.select`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {conv.units.map((u) => (
+                        <SelectItem key={u} value={u} className="text-xs">
+                          {u}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="text-slate-500 text-sm pb-1.5">→</div>
+                <div className="w-28">
+                  <Label className="text-xs text-slate-400">To</Label>
+                  <Select
+                    value={state.to}
+                    onValueChange={(v) =>
+                      setConvValues((prev) => ({
+                        ...prev,
+                        [conv.label]: { ...state, to: v },
+                      }))
+                    }
+                  >
+                    <SelectTrigger
+                      className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100"
+                      data-ocid={`conversion.${conv.label.toLowerCase()}.to.select`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {conv.units.map((u) => (
+                        <SelectItem key={u} value={u} className="text-xs">
+                          {u}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleCalc}
+                  data-ocid={`conversion.${conv.label.toLowerCase()}.calculate.button`}
+                  className="h-8 text-xs bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white border-0 pb-0 mb-0"
+                >
+                  Convert
+                </Button>
+              </div>
+              {result !== null && (
+                <div
+                  className="mt-2 rounded-lg p-2 flex items-center justify-between"
+                  style={{
+                    background: "rgba(139,92,246,0.08)",
+                    border: "1px solid rgba(139,92,246,0.25)",
+                  }}
+                  data-ocid={`conversion.${conv.label.toLowerCase()}.result.panel`}
+                >
+                  <span className="text-xs text-slate-400">
+                    {state.val} {state.from} =
+                  </span>
+                  <span className="text-sm font-bold font-mono text-violet-300">
+                    {result} {state.to}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Statistical Calculator ──────────────────────────────────────────────────
+
+function parseNumbers(input: string): number[] {
+  return input
+    .split(/[,;\s]+/)
+    .map((s) => Number.parseFloat(s.trim()))
+    .filter((n) => !Number.isNaN(n));
+}
+
+function mean(ns: number[]) {
+  return ns.reduce((a, b) => a + b, 0) / ns.length;
+}
+
+function stdDev(ns: number[], sample = false) {
+  const m = mean(ns);
+  const variance =
+    ns.reduce((sum, n) => sum + (n - m) ** 2, 0) /
+    (ns.length - (sample ? 1 : 0));
+  return Math.sqrt(variance);
+}
+
+function StatisticsTab({
+  onAddHistory,
+}: {
+  onAddHistory: (e: HistoryEntry) => void;
+}) {
+  const [rawValues, setRawValues] = useState("");
+  const [statsResult, setStatsResult] = useState<Record<string, string> | null>(
+    null,
+  );
+
+  const calcStats = () => {
+    const ns = parseNumbers(rawValues);
+    if (ns.length < 2) {
+      toast.error("Enter at least 2 comma-separated numbers");
+      return;
+    }
+    const m = mean(ns);
+    const sdPop = stdDev(ns, false);
+    const sdSample = stdDev(ns, true);
+    const sorted = [...ns].sort((a, b) => a - b);
+    const median =
+      ns.length % 2 === 0
+        ? (sorted[ns.length / 2 - 1] + sorted[ns.length / 2]) / 2
+        : sorted[Math.floor(ns.length / 2)];
+    const freq: Record<number, number> = {};
+    for (const n of ns) freq[n] = (freq[n] ?? 0) + 1;
+    const maxFreq = Math.max(...Object.values(freq));
+    const modes = Object.keys(freq)
+      .filter((k) => freq[Number(k)] === maxFreq)
+      .join(", ");
+
+    const rsd = (sdPop / m) * 100;
+
+    const res = {
+      "N (count)": String(ns.length),
+      Mean: m.toPrecision(8),
+      Median: median.toPrecision(8),
+      Mode: modes,
+      "SD (Population)": sdPop.toPrecision(8),
+      "SD (Sample)": sdSample.toPrecision(8),
+      Variance: (sdPop ** 2).toPrecision(8),
+      "RSD %": rsd.toPrecision(6),
+      "CV %": rsd.toPrecision(6),
+      Min: String(sorted[0]),
+      Max: String(sorted[sorted.length - 1]),
+    };
+    setStatsResult(res);
+
+    onAddHistory({
+      expression: `Stats([${ns.slice(0, 5).join(",")}${ns.length > 5 ? "..." : ""}])`,
+      result: `Mean=${m.toPrecision(6)}, SD=${sdPop.toPrecision(6)}, RSD=${rsd.toPrecision(4)}%`,
+      timestamp: new Date(),
+      category: "Statistical",
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card
+        className="border-0"
+        style={{
+          background: "rgba(255,255,255,0.02)",
+          border: "1px solid rgba(45,180,210,0.12)",
+          borderLeft: "3px solid rgba(14,165,233,0.5)",
+        }}
+      >
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-100">
+            Descriptive Statistics
+          </h3>
+          <div
+            className="px-2 py-1 rounded text-xs font-mono text-teal-300"
+            style={{ background: "rgba(45,212,191,0.08)" }}
+          >
+            Mean, SD, Variance, RSD%, CV%, Median, Mode
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-400">
+              Values (comma or space separated)
+            </Label>
+            <Textarea
+              placeholder="e.g. 98.5, 99.1, 98.8, 100.2, 99.7"
+              value={rawValues}
+              onChange={(e) => setRawValues(e.target.value)}
+              data-ocid="stats.values.textarea"
+              className="text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600 h-16 resize-none"
+            />
+          </div>
+          <Button
+            size="sm"
+            onClick={calcStats}
+            data-ocid="stats.calculate.button"
+            className="w-full h-8 text-xs bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-500 hover:to-blue-500 text-white border-0"
+          >
+            Calculate All
+          </Button>
+
+          {statsResult && (
+            <div
+              className="rounded-lg p-3 space-y-1.5"
+              style={{
+                background: "rgba(45,212,191,0.05)",
+                border: "1px solid rgba(45,212,191,0.2)",
+              }}
+              data-ocid="stats.result.panel"
+            >
+              {Object.entries(statsResult).map(([k, v]) => (
+                <div
+                  key={k}
+                  className="flex justify-between items-center text-xs"
+                >
+                  <span className="text-slate-400">{k}</span>
+                  <span className="font-mono font-semibold text-teal-300">
+                    {v}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Z-score */}
+      <FormulaCard
+        title="Z-Score"
+        formula="z = (x − μ) / σ"
+        fields={[
+          { key: "x", label: "Value (x)" },
+          { key: "mean", label: "Mean (μ)" },
+          { key: "sd", label: "Std Dev (σ)" },
+        ]}
+        calculate={(v) => {
+          const x = Number.parseFloat(v.x);
+          const m = Number.parseFloat(v.mean);
+          const s = Number.parseFloat(v.sd);
+          if (Number.isNaN(x) || Number.isNaN(m) || Number.isNaN(s) || s === 0)
+            return "Error";
+          return ((x - m) / s).toPrecision(6);
+        }}
+        resultLabel="Z-Score"
+        onAddHistory={onAddHistory}
+        ocidPrefix="zscore"
+      />
+    </div>
+  );
+}
+
+// ─── Quadratic Formula ────────────────────────────────────────────────────────
+
+function QuadraticCard({
+  onAddHistory,
+}: {
+  onAddHistory: (e: HistoryEntry) => void;
+}) {
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
+  const [c, setC] = useState("");
+  const [roots, setRoots] = useState<string | null>(null);
+
+  const calc = () => {
+    const na = Number.parseFloat(a);
+    const nb = Number.parseFloat(b);
+    const nc = Number.parseFloat(c);
+    if (Number.isNaN(na) || Number.isNaN(nb) || Number.isNaN(nc) || na === 0) {
+      setRoots("Error: a ≠ 0");
+      return;
+    }
+    const disc = nb ** 2 - 4 * na * nc;
+    if (disc < 0) {
+      setRoots(
+        `Complex roots: (${(-nb / (2 * na)).toPrecision(4)} ± ${(Math.sqrt(-disc) / (2 * na)).toPrecision(4)}i)`,
+      );
+    } else {
+      const r1 = (-nb + Math.sqrt(disc)) / (2 * na);
+      const r2 = (-nb - Math.sqrt(disc)) / (2 * na);
+      setRoots(`x₁ = ${r1.toPrecision(6)}, x₂ = ${r2.toPrecision(6)}`);
+      onAddHistory({
+        expression: `Quadratic: ${na}x²+${nb}x+${nc}=0`,
+        result: `x₁=${r1.toPrecision(6)}, x₂=${r2.toPrecision(6)}`,
+        timestamp: new Date(),
+        category: "Scientific",
+      });
+    }
+  };
+
+  return (
+    <Card
+      className="border-0"
+      style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(45,180,210,0.12)",
+        borderLeft: "3px solid rgba(99,102,241,0.5)",
+      }}
+    >
+      <CardContent className="p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-slate-100">
+          Quadratic Formula
+        </h3>
+        <div
+          className="px-2 py-1 rounded text-xs font-mono text-indigo-300"
+          style={{ background: "rgba(99,102,241,0.08)" }}
+        >
+          x = (−b ± √(b²−4ac)) / 2a
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { val: a, set: setA, label: "a" },
+            { val: b, set: setB, label: "b" },
+            { val: c, set: setC, label: "c" },
+          ].map(({ val, set, label }) => (
+            <div key={label} className="space-y-1">
+              <Label className="text-xs text-slate-400">{label}</Label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={val}
+                onChange={(e) => set(e.target.value)}
+                data-ocid={`quadratic.${label}.input`}
+                className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600"
+              />
+            </div>
+          ))}
+        </div>
+        <Button
+          size="sm"
+          onClick={calc}
+          data-ocid="quadratic.calculate.button"
+          className="w-full h-8 text-xs bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white border-0"
+        >
+          Solve
+        </Button>
+        {roots && (
+          <div
+            className="rounded-lg p-3 text-xs font-mono text-indigo-300 text-center"
+            style={{
+              background: "rgba(99,102,241,0.08)",
+              border: "1px solid rgba(99,102,241,0.25)",
+            }}
+            data-ocid="quadratic.result.panel"
+          >
+            {roots}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Dilution C1V1=C2V2 ───────────────────────────────────────────────────────
+
+function DilutionCard({
+  onAddHistory,
+}: {
+  onAddHistory: (e: HistoryEntry) => void;
+}) {
+  const [vals, setVals] = useState({ c1: "", v1: "", c2: "", v2: "" });
+  const [solveFor, setSolveFor] = useState("v2");
+  const [result, setResult] = useState<string | null>(null);
+
+  const calc = () => {
+    const { c1, v1, c2, v2 } = vals;
+    const n = (s: string) => Number.parseFloat(s);
+    let res = 0;
+    if (solveFor === "c1") res = (n(c2) * n(v2)) / n(v1);
+    else if (solveFor === "v1") res = (n(c2) * n(v2)) / n(c1);
+    else if (solveFor === "c2") res = (n(c1) * n(v1)) / n(v2);
+    else res = (n(c1) * n(v1)) / n(c2);
+
+    if (!Number.isFinite(res) || Number.isNaN(res)) {
+      setResult("Error");
+      return;
+    }
+    const r = res.toPrecision(6);
+    setResult(r);
+    onAddHistory({
+      expression: `Dilution C1V1=C2V2, solve ${solveFor.toUpperCase()}`,
+      result: r,
+      timestamp: new Date(),
+      category: "Chemistry",
+    });
+  };
+
+  return (
+    <Card
+      className="border-0"
+      style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(45,180,210,0.12)",
+        borderLeft: "3px solid rgba(16,185,129,0.5)",
+      }}
+    >
+      <CardContent className="p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-slate-100">
+          Dilution (C₁V₁ = C₂V₂)
+        </h3>
+        <div
+          className="px-2 py-1 rounded text-xs font-mono text-emerald-300"
+          style={{ background: "rgba(16,185,129,0.08)" }}
+        >
+          C₁V₁ = C₂V₂ — solve for any variable
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-slate-400">Solve for</Label>
+          <Select value={solveFor} onValueChange={setSolveFor}>
+            <SelectTrigger
+              className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100"
+              data-ocid="dilution.solvfor.select"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="c1">C₁ (Initial Concentration)</SelectItem>
+              <SelectItem value="v1">V₁ (Initial Volume)</SelectItem>
+              <SelectItem value="c2">C₂ (Final Concentration)</SelectItem>
+              <SelectItem value="v2">V₂ (Final Volume)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {["c1", "v1", "c2", "v2"].map((k) => (
+            <div key={k} className="space-y-1">
+              <Label className="text-xs text-slate-400">
+                {k === "c1"
+                  ? "C₁"
+                  : k === "v1"
+                    ? "V₁"
+                    : k === "c2"
+                      ? "C₂"
+                      : "V₂"}
+                {solveFor === k && (
+                  <span className="ml-1 text-emerald-400">(solving)</span>
+                )}
+              </Label>
+              <Input
+                type="number"
+                placeholder={solveFor === k ? "← result" : "Enter value"}
+                disabled={solveFor === k}
+                value={
+                  solveFor === k ? (result ?? "") : vals[k as keyof typeof vals]
+                }
+                onChange={(e) =>
+                  setVals((prev) => ({ ...prev, [k]: e.target.value }))
+                }
+                data-ocid={`dilution.${k}.input`}
+                className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600 disabled:opacity-40"
+              />
+            </div>
+          ))}
+        </div>
+        <Button
+          size="sm"
+          onClick={calc}
+          data-ocid="dilution.calculate.button"
+          className="w-full h-8 text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0"
+        >
+          Calculate
+        </Button>
+        {result && (
+          <div
+            className="rounded-lg p-2 text-center"
+            style={{
+              background: "rgba(16,185,129,0.08)",
+              border: "1px solid rgba(16,185,129,0.25)",
+            }}
+            data-ocid="dilution.result.panel"
+          >
+            <span className="text-sm font-bold font-mono text-emerald-300">
+              {solveFor.toUpperCase()} = {result}
+            </span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Content Uniformity ───────────────────────────────────────────────────────
+
+function ContentUniformityCard({
+  onAddHistory,
+}: {
+  onAddHistory: (e: HistoryEntry) => void;
+}) {
+  const [rawValues, setRawValues] = useState("");
+  const [labelClaim, setLabelClaim] = useState("");
+  const [result, setResult] = useState<{
+    mean: string;
+    rsd: string;
+    pass: boolean;
+    values: string[];
+    allInRange: boolean;
+  } | null>(null);
+
+  const calc = () => {
+    const ns = parseNumbers(rawValues);
+    if (ns.length < 2) {
+      toast.error("Enter at least 2 values");
+      return;
+    }
+    const lc = Number.parseFloat(labelClaim) || 100;
+    const percentages = ns.map((n) => (n / lc) * 100);
+    const m = mean(percentages);
+    const sd = stdDev(percentages, true);
+    const rsd = (sd / m) * 100;
+    const allInRange = percentages.every((p) => p >= 85 && p <= 115);
+    const pass = rsd <= 6 && allInRange;
+
+    setResult({
+      mean: m.toPrecision(6),
+      rsd: rsd.toPrecision(4),
+      pass,
+      values: percentages.map((p) => p.toPrecision(4)),
+      allInRange,
+    });
+    onAddHistory({
+      expression: `Content Uniformity (LC=${lc})`,
+      result: `Mean=${m.toPrecision(4)}%, RSD=${rsd.toPrecision(3)}%, ${pass ? "PASS" : "FAIL"}`,
+      timestamp: new Date(),
+      category: "Pharma",
+    });
+  };
+
+  return (
+    <Card
+      className="border-0"
+      style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(45,180,210,0.12)",
+        borderLeft: "3px solid rgba(245,158,11,0.5)",
+      }}
+    >
+      <CardContent className="p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-slate-100">
+          Content Uniformity
+        </h3>
+        <div
+          className="px-2 py-1 rounded text-xs font-mono text-amber-300"
+          style={{ background: "rgba(245,158,11,0.08)" }}
+        >
+          USP: RSD ≤ 6%, all units 85–115% of label claim
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-400">Label Claim (mg)</Label>
+            <Input
+              type="number"
+              placeholder="100"
+              value={labelClaim}
+              onChange={(e) => setLabelClaim(e.target.value)}
+              data-ocid="cuniformity.labelclaim.input"
+              className="h-8 text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600"
+            />
+          </div>
+          <div className="space-y-1 col-span-2">
+            <Label className="text-xs text-slate-400">
+              Measured values (comma separated)
+            </Label>
+            <Textarea
+              placeholder="e.g. 99, 101, 98, 102, 100"
+              value={rawValues}
+              onChange={(e) => setRawValues(e.target.value)}
+              data-ocid="cuniformity.values.textarea"
+              className="text-xs bg-[#0a1628] border-teal-500/20 text-slate-100 placeholder:text-slate-600 h-14 resize-none"
+            />
+          </div>
+        </div>
+        <Button
+          size="sm"
+          onClick={calc}
+          data-ocid="cuniformity.calculate.button"
+          className="w-full h-8 text-xs bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white border-0"
+        >
+          Check Uniformity
+        </Button>
+        {result && (
+          <div
+            className="rounded-lg p-3 space-y-2"
+            style={{
+              background: result.pass
+                ? "rgba(16,185,129,0.08)"
+                : "rgba(239,68,68,0.08)",
+              border: `1px solid ${result.pass ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`,
+            }}
+            data-ocid="cuniformity.result.panel"
+          >
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-slate-400">Verdict</span>
+              <Badge
+                className={
+                  result.pass
+                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                    : "bg-red-500/20 text-red-300 border-red-500/30"
+                }
+              >
+                {result.pass ? "PASS" : "FAIL"}
+              </Badge>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Mean</span>
+              <span className="font-mono text-teal-300">{result.mean}%</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">RSD</span>
+              <span
+                className={`font-mono ${Number.parseFloat(result.rsd) <= 6 ? "text-emerald-300" : "text-red-300"}`}
+              >
+                {result.rsd}%
+              </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">85–115% range</span>
+              <span
+                className={
+                  result.allInRange ? "text-emerald-300" : "text-red-300"
+                }
+              >
+                {result.allInRange ? "All in range" : "Out of range"}
+              </span>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── History Panel ────────────────────────────────────────────────────────────
+
+function HistoryPanel({
+  history,
+  onClear,
+  onRestore,
+}: {
+  history: HistoryEntry[];
+  onClear: () => void;
+  onRestore: (e: HistoryEntry) => void;
+}) {
+  return (
+    <Card
+      className="border-0"
+      style={{
+        background: "linear-gradient(135deg, #0d2137 0%, #0a1628 100%)",
+        border: "1px solid rgba(45,180,210,0.2)",
+      }}
+    >
+      <CardHeader className="py-3 px-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-slate-100 text-sm font-semibold flex items-center gap-2">
+            <FlaskConical className="h-4 w-4 text-teal-400" />
+            Calculation History
+          </CardTitle>
+          {history.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onClear}
+              data-ocid="history.clear.button"
+              className="h-7 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-2"
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        {history.length === 0 ? (
+          <div
+            className="text-center py-8 text-xs text-slate-600"
+            data-ocid="history.empty_state"
+          >
+            No calculations yet
+          </div>
+        ) : (
+          <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+            {[...history].reverse().map((entry, i) => (
+              <button
+                // biome-ignore lint/suspicious/noArrayIndexKey: history is reversed and items are ephemeral
+                key={i}
+                type="button"
+                onClick={() => onRestore(entry)}
+                data-ocid={`history.item.${i + 1}`}
+                className="w-full text-left rounded-lg p-2 transition-colors hover:bg-white/5 group"
+                style={{ border: "1px solid rgba(45,180,210,0.08)" }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] text-slate-500 font-mono truncate">
+                      {entry.expression}
+                    </div>
+                    <div className="text-xs font-bold font-mono text-teal-300 truncate">
+                      = {entry.result}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    {entry.category && (
+                      <Badge
+                        className="text-[9px] px-1 py-0 bg-slate-700/50 text-slate-400 border-0"
+                        variant="outline"
+                      >
+                        {entry.category}
+                      </Badge>
+                    )}
+                    <div className="text-[9px] text-slate-600 mt-0.5">
+                      {entry.timestamp.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Main Calculator Page ─────────────────────────────────────────────────────
+
+export function Calculator() {
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [restoredExpr, setRestoredExpr] = useState<string>("");
+
+  const addToHistory = useCallback((entry: HistoryEntry) => {
+    setHistory((prev) => [...prev.slice(-49), entry]);
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+  }, []);
+
+  const handleRestore = useCallback((entry: HistoryEntry) => {
+    setRestoredExpr(entry.expression);
+    toast.info(`Restored: ${entry.expression} = ${entry.result}`);
+  }, []);
+
+  // Suppress unused warning — restoredExpr is for future restoration
+  void restoredExpr;
+
+  return (
+    <div className="p-6 space-y-6" data-ocid="calculator.page">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <div
+              className="h-8 w-8 rounded-lg flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, #84cc16, #14b8a6)",
+                boxShadow: "0 0 12px rgba(132,204,22,0.3)",
+              }}
+            >
+              <Sigma className="h-4 w-4 text-white" />
+            </div>
+            Formula Calculator
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Scientific · Statistical · Chemistry · Pharma · Conversions
+          </p>
+        </div>
+        <Badge
+          className="text-xs"
+          style={{
+            background: "rgba(132,204,22,0.1)",
+            color: "#84cc16",
+            border: "1px solid rgba(132,204,22,0.3)",
+          }}
+        >
+          All Formula Types
+        </Badge>
+      </div>
+
+      {/* Main Layout: two columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left: Scientific Calculator Keyboard */}
+        <div className="space-y-4">
+          <KeyboardCalculator onAddHistory={addToHistory} />
+          <HistoryPanel
+            history={history}
+            onClear={clearHistory}
+            onRestore={handleRestore}
+          />
+        </div>
+
+        {/* Right: Formula Library */}
+        <div>
+          <Card
+            className="border-0"
+            style={{
+              background: "linear-gradient(135deg, #0d2137 0%, #0a1628 100%)",
+              border: "1px solid rgba(45,180,210,0.2)",
+            }}
+          >
+            <CardHeader className="pb-0 px-4 pt-4">
+              <CardTitle className="text-slate-100 text-sm font-semibold">
+                Formula Library
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <Tabs defaultValue="basic" data-ocid="calculator.library.tab">
+                <TabsList className="w-full grid grid-cols-6 h-8 bg-[#0a1628] border border-teal-500/20 mb-4">
+                  {[
+                    "basic",
+                    "scientific",
+                    "statistical",
+                    "chemistry",
+                    "conversions",
+                    "pharma",
+                  ].map((tab) => (
+                    <TabsTrigger
+                      key={tab}
+                      value={tab}
+                      data-ocid={`calculator.${tab}.tab`}
+                      className="text-[10px] capitalize data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300"
+                    >
+                      {tab === "statistical"
+                        ? "Stats"
+                        : tab === "chemistry"
+                          ? "Chem"
+                          : tab === "conversions"
+                            ? "Conv."
+                            : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                {/* ── Basic ── */}
+                <TabsContent value="basic" className="space-y-3 mt-0">
+                  <FormulaCard
+                    title="Percentage"
+                    formula="(value ÷ total) × 100"
+                    fields={[
+                      { key: "value", label: "Value" },
+                      { key: "total", label: "Total" },
+                    ]}
+                    calculate={(v) => {
+                      const val = Number.parseFloat(v.value);
+                      const tot = Number.parseFloat(v.total);
+                      if (Number.isNaN(val) || Number.isNaN(tot) || tot === 0)
+                        return "Error";
+                      return ((val / tot) * 100).toPrecision(6);
+                    }}
+                    resultUnit="%"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="basic.percentage"
+                  />
+                  <FormulaCard
+                    title="Average (Mean)"
+                    formula="sum ÷ count"
+                    fields={[
+                      { key: "sum", label: "Sum" },
+                      { key: "count", label: "Count" },
+                    ]}
+                    calculate={(v) => {
+                      const s = Number.parseFloat(v.sum);
+                      const c = Number.parseFloat(v.count);
+                      if (Number.isNaN(s) || Number.isNaN(c) || c === 0)
+                        return "Error";
+                      return (s / c).toPrecision(8);
+                    }}
+                    onAddHistory={addToHistory}
+                    ocidPrefix="basic.average"
+                  />
+                  <FormulaCard
+                    title="Power"
+                    formula="base ^ exponent"
+                    fields={[
+                      { key: "base", label: "Base" },
+                      { key: "exp", label: "Exponent" },
+                    ]}
+                    calculate={(v) => {
+                      const b = Number.parseFloat(v.base);
+                      const e = Number.parseFloat(v.exp);
+                      if (Number.isNaN(b) || Number.isNaN(e)) return "Error";
+                      const r = b ** e;
+                      return Number.isFinite(r) ? r.toPrecision(10) : "Error";
+                    }}
+                    onAddHistory={addToHistory}
+                    ocidPrefix="basic.power"
+                  />
+                  <FormulaCard
+                    title="Square Root"
+                    formula="√(number)"
+                    fields={[{ key: "n", label: "Number" }]}
+                    calculate={(v) => {
+                      const n = Number.parseFloat(v.n);
+                      if (Number.isNaN(n) || n < 0) return "Error";
+                      return Math.sqrt(n).toPrecision(10);
+                    }}
+                    onAddHistory={addToHistory}
+                    ocidPrefix="basic.sqrt"
+                  />
+                </TabsContent>
+
+                {/* ── Scientific ── */}
+                <TabsContent value="scientific" className="space-y-3 mt-0">
+                  {[
+                    {
+                      title: "Sine",
+                      formula: "sin(angle°)",
+                      key: "angle",
+                      label: "Angle (°)",
+                      fn: (v: string) =>
+                        Math.sin(
+                          (Number.parseFloat(v) * Math.PI) / 180,
+                        ).toPrecision(8),
+                      pfx: "sci.sine",
+                    },
+                    {
+                      title: "Cosine",
+                      formula: "cos(angle°)",
+                      key: "angle",
+                      label: "Angle (°)",
+                      fn: (v: string) =>
+                        Math.cos(
+                          (Number.parseFloat(v) * Math.PI) / 180,
+                        ).toPrecision(8),
+                      pfx: "sci.cosine",
+                    },
+                    {
+                      title: "Tangent",
+                      formula: "tan(angle°)",
+                      key: "angle",
+                      label: "Angle (°)",
+                      fn: (v: string) =>
+                        Math.tan(
+                          (Number.parseFloat(v) * Math.PI) / 180,
+                        ).toPrecision(8),
+                      pfx: "sci.tangent",
+                    },
+                    {
+                      title: "Log₁₀",
+                      formula: "log₁₀(x)",
+                      key: "x",
+                      label: "x",
+                      fn: (v: string) => {
+                        const n = Number.parseFloat(v);
+                        return n > 0 ? Math.log10(n).toPrecision(8) : "Error";
+                      },
+                      pfx: "sci.log10",
+                    },
+                    {
+                      title: "Natural Log",
+                      formula: "ln(x)",
+                      key: "x",
+                      label: "x",
+                      fn: (v: string) => {
+                        const n = Number.parseFloat(v);
+                        return n > 0 ? Math.log(n).toPrecision(8) : "Error";
+                      },
+                      pfx: "sci.ln",
+                    },
+                    {
+                      title: "Exponential",
+                      formula: "eˣ",
+                      key: "x",
+                      label: "x",
+                      fn: (v: string) =>
+                        Math.exp(Number.parseFloat(v)).toPrecision(10),
+                      pfx: "sci.exp",
+                    },
+                  ].map(({ title, formula, key, label, fn, pfx }) => (
+                    <FormulaCard
+                      key={pfx}
+                      title={title}
+                      formula={formula}
+                      fields={[{ key, label }]}
+                      calculate={(v) => {
+                        const val = v[key];
+                        if (!val || Number.isNaN(Number.parseFloat(val)))
+                          return "Error";
+                        return fn(val);
+                      }}
+                      onAddHistory={addToHistory}
+                      ocidPrefix={pfx}
+                    />
+                  ))}
+                  <QuadraticCard onAddHistory={addToHistory} />
+                </TabsContent>
+
+                {/* ── Statistical ── */}
+                <TabsContent value="statistical" className="space-y-3 mt-0">
+                  <StatisticsTab onAddHistory={addToHistory} />
+                </TabsContent>
+
+                {/* ── Chemistry ── */}
+                <TabsContent value="chemistry" className="space-y-3 mt-0">
+                  <FormulaCard
+                    title="Molarity"
+                    formula="M = moles ÷ volume (L)"
+                    fields={[
+                      { key: "moles", label: "Moles (mol)" },
+                      { key: "volume", label: "Volume (L)" },
+                    ]}
+                    calculate={(v) => {
+                      const m = Number.parseFloat(v.moles);
+                      const vol = Number.parseFloat(v.volume);
+                      if (Number.isNaN(m) || Number.isNaN(vol) || vol === 0)
+                        return "Error";
+                      return (m / vol).toPrecision(6);
+                    }}
+                    resultUnit="mol/L"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="chem.molarity"
+                  />
+                  <DilutionCard onAddHistory={addToHistory} />
+                  <FormulaCard
+                    title="% w/v Concentration"
+                    formula="(mass(g) ÷ volume(mL)) × 100"
+                    fields={[
+                      { key: "mass", label: "Mass (g)" },
+                      { key: "volume", label: "Volume (mL)" },
+                    ]}
+                    calculate={(v) => {
+                      const m = Number.parseFloat(v.mass);
+                      const vol = Number.parseFloat(v.volume);
+                      if (Number.isNaN(m) || Number.isNaN(vol) || vol === 0)
+                        return "Error";
+                      return ((m / vol) * 100).toPrecision(6);
+                    }}
+                    resultUnit="% w/v"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="chem.wv"
+                  />
+                  <FormulaCard
+                    title="% w/w Concentration"
+                    formula="(mass solute ÷ mass solution) × 100"
+                    fields={[
+                      { key: "solute", label: "Mass Solute (g)" },
+                      { key: "solution", label: "Mass Solution (g)" },
+                    ]}
+                    calculate={(v) => {
+                      const sol = Number.parseFloat(v.solute);
+                      const soln = Number.parseFloat(v.solution);
+                      if (Number.isNaN(sol) || Number.isNaN(soln) || soln === 0)
+                        return "Error";
+                      return ((sol / soln) * 100).toPrecision(6);
+                    }}
+                    resultUnit="% w/w"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="chem.ww"
+                  />
+                  <FormulaCard
+                    title="pH"
+                    formula="-log₁₀([H⁺])"
+                    fields={[
+                      {
+                        key: "h",
+                        label: "[H⁺] concentration",
+                        unit: "mol/L",
+                        placeholder: "e.g. 1e-7",
+                      },
+                    ]}
+                    calculate={(v) => {
+                      const h = Number.parseFloat(v.h);
+                      if (Number.isNaN(h) || h <= 0) return "Error";
+                      return (-Math.log10(h)).toPrecision(4);
+                    }}
+                    resultLabel="pH"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="chem.ph"
+                  />
+                  <FormulaCard
+                    title="Molecular Weight"
+                    formula="MW = mass ÷ moles"
+                    fields={[
+                      { key: "mass", label: "Mass (g)" },
+                      { key: "moles", label: "Moles (mol)" },
+                    ]}
+                    calculate={(v) => {
+                      const m = Number.parseFloat(v.mass);
+                      const mol = Number.parseFloat(v.moles);
+                      if (Number.isNaN(m) || Number.isNaN(mol) || mol === 0)
+                        return "Error";
+                      return (m / mol).toPrecision(6);
+                    }}
+                    resultUnit="g/mol"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="chem.mw"
+                  />
+                  <FormulaCard
+                    title="PPM to mg/L"
+                    formula="1 ppm = 1 mg/L (in water)"
+                    fields={[{ key: "ppm", label: "ppm value" }]}
+                    calculate={(v) => {
+                      const p = Number.parseFloat(v.ppm);
+                      if (Number.isNaN(p)) return "Error";
+                      return p.toPrecision(6);
+                    }}
+                    resultUnit="mg/L"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="chem.ppm"
+                  />
+                </TabsContent>
+
+                {/* ── Conversions ── */}
+                <TabsContent value="conversions" className="space-y-3 mt-0">
+                  <ConversionsTab onAddHistory={addToHistory} />
+                </TabsContent>
+
+                {/* ── Pharma ── */}
+                <TabsContent value="pharma" className="space-y-3 mt-0">
+                  <FormulaCard
+                    title="LOD (Limit of Detection)"
+                    formula="LOD = 3.3 × σ ÷ S"
+                    fields={[
+                      {
+                        key: "sigma",
+                        label: "σ (SD of blank)",
+                      },
+                      { key: "slope", label: "S (Slope)" },
+                    ]}
+                    calculate={(v) => {
+                      const sigma = Number.parseFloat(v.sigma);
+                      const slope = Number.parseFloat(v.slope);
+                      if (
+                        Number.isNaN(sigma) ||
+                        Number.isNaN(slope) ||
+                        slope === 0
+                      )
+                        return "Error";
+                      return ((3.3 * sigma) / slope).toPrecision(6);
+                    }}
+                    onAddHistory={addToHistory}
+                    ocidPrefix="pharma.lod"
+                  />
+                  <FormulaCard
+                    title="LOQ (Limit of Quantification)"
+                    formula="LOQ = 10 × σ ÷ S"
+                    fields={[
+                      { key: "sigma", label: "σ (SD of blank)" },
+                      { key: "slope", label: "S (Slope)" },
+                    ]}
+                    calculate={(v) => {
+                      const sigma = Number.parseFloat(v.sigma);
+                      const slope = Number.parseFloat(v.slope);
+                      if (
+                        Number.isNaN(sigma) ||
+                        Number.isNaN(slope) ||
+                        slope === 0
+                      )
+                        return "Error";
+                      return ((10 * sigma) / slope).toPrecision(6);
+                    }}
+                    onAddHistory={addToHistory}
+                    ocidPrefix="pharma.loq"
+                  />
+                  <FormulaCard
+                    title="Recovery %"
+                    formula="(Found ÷ Spiked) × 100"
+                    fields={[
+                      { key: "found", label: "Found Amount" },
+                      { key: "spiked", label: "Spiked Amount" },
+                    ]}
+                    calculate={(v) => {
+                      const f = Number.parseFloat(v.found);
+                      const s = Number.parseFloat(v.spiked);
+                      if (Number.isNaN(f) || Number.isNaN(s) || s === 0)
+                        return "Error";
+                      return ((f / s) * 100).toPrecision(6);
+                    }}
+                    resultUnit="%"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="pharma.recovery"
+                  />
+                  <FormulaCard
+                    title="Assay %"
+                    formula="(Found ÷ Label Claim) × 100"
+                    fields={[
+                      { key: "found", label: "Found Concentration" },
+                      { key: "claim", label: "Label Claim" },
+                    ]}
+                    calculate={(v) => {
+                      const f = Number.parseFloat(v.found);
+                      const c = Number.parseFloat(v.claim);
+                      if (Number.isNaN(f) || Number.isNaN(c) || c === 0)
+                        return "Error";
+                      return ((f / c) * 100).toPrecision(6);
+                    }}
+                    resultUnit="%"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="pharma.assay"
+                  />
+                  <FormulaCard
+                    title="Potency %"
+                    formula="(Observed ÷ Theoretical) × 100"
+                    fields={[
+                      { key: "observed", label: "Observed Activity" },
+                      { key: "theoretical", label: "Theoretical Activity" },
+                    ]}
+                    calculate={(v) => {
+                      const o = Number.parseFloat(v.observed);
+                      const t = Number.parseFloat(v.theoretical);
+                      if (Number.isNaN(o) || Number.isNaN(t) || t === 0)
+                        return "Error";
+                      return ((o / t) * 100).toPrecision(6);
+                    }}
+                    resultUnit="%"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="pharma.potency"
+                  />
+                  <ContentUniformityCard onAddHistory={addToHistory} />
+                  <FormulaCard
+                    title="API Yield %"
+                    formula="(Actual ÷ Theoretical) × 100"
+                    fields={[
+                      { key: "actual", label: "Actual Yield" },
+                      { key: "theoretical", label: "Theoretical Yield" },
+                    ]}
+                    calculate={(v) => {
+                      const a = Number.parseFloat(v.actual);
+                      const t = Number.parseFloat(v.theoretical);
+                      if (Number.isNaN(a) || Number.isNaN(t) || t === 0)
+                        return "Error";
+                      return ((a / t) * 100).toPrecision(6);
+                    }}
+                    resultUnit="%"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="pharma.apiyield"
+                  />
+                  <FormulaCard
+                    title="Dilution Factor"
+                    formula="Final Volume ÷ Aliquot Volume"
+                    fields={[
+                      { key: "final", label: "Final Volume (mL)" },
+                      { key: "aliquot", label: "Aliquot Volume (mL)" },
+                    ]}
+                    calculate={(v) => {
+                      const f = Number.parseFloat(v.final);
+                      const a = Number.parseFloat(v.aliquot);
+                      if (Number.isNaN(f) || Number.isNaN(a) || a === 0)
+                        return "Error";
+                      return (f / a).toPrecision(6);
+                    }}
+                    resultLabel="DF"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="pharma.dilution_factor"
+                  />
+                  <FormulaCard
+                    title="Dissolution Efficiency"
+                    formula="AUC ÷ (t × 100)"
+                    fields={[
+                      { key: "auc", label: "AUC" },
+                      { key: "time", label: "Time (min)" },
+                    ]}
+                    calculate={(v) => {
+                      const auc = Number.parseFloat(v.auc);
+                      const t = Number.parseFloat(v.time);
+                      if (Number.isNaN(auc) || Number.isNaN(t) || t === 0)
+                        return "Error";
+                      return (auc / (t * 100)).toPrecision(6);
+                    }}
+                    resultUnit="%"
+                    onAddHistory={addToHistory}
+                    ocidPrefix="pharma.dissolution"
+                  />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

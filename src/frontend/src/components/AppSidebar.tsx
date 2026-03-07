@@ -5,6 +5,7 @@ import {
   Beaker,
   Bell,
   BookOpen,
+  Calculator,
   CheckSquare,
   ClipboardCheck,
   Eye,
@@ -103,6 +104,11 @@ const NAV_COLORS: Record<
     hover: "hover:bg-cyan-600/10",
     icon: "text-cyan-300",
   },
+  "/calculator": {
+    active: "from-lime-500 to-teal-500",
+    hover: "hover:bg-lime-500/10",
+    icon: "text-lime-300",
+  },
 };
 
 export function AppSidebar() {
@@ -178,6 +184,11 @@ export function AppSidebar() {
       path: "/test-masters",
       icon: <BookOpen className="h-4 w-4" />,
       roles: ["admin", "qa", "sectionInCharge"],
+    },
+    {
+      label: "Calculator",
+      path: "/calculator",
+      icon: <Calculator className="h-4 w-4" />,
     },
     {
       label: "Admin Panel",
