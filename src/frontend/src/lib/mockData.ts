@@ -11,7 +11,19 @@ export type WorkflowStage =
   | "SICReview"
   | "QAReview"
   | "COA"
-  | "OnHold";
+  | "OnHold"
+  | "Rejected"
+  | "PendingApproval";
+
+export type ApprovalDecision = "pending" | "approved" | "rejected" | "hold";
+
+export interface SICApprovalRecord {
+  userId: string;
+  userName: string;
+  decision: ApprovalDecision;
+  comment: string;
+  decidedAt?: string;
+}
 
 export type UserRoleType = "admin" | "qa" | "sectionInCharge" | "analyst";
 
@@ -67,7 +79,8 @@ export interface SampleIntakeRecord {
   numberOfUnits: number;
   specialHandling: string;
   requestedTests?: string[];
-  assignToSectionInCharge: string;
+  assignToSectionInCharge: string | string[];
+  approvalDecisions?: SICApprovalRecord[];
   status: WorkflowStage;
   createdAt: string;
   createdBy: string;
@@ -639,9 +652,24 @@ export const SAMPLE_INTAKES: SampleIntakeRecord[] = [
     numberOfUnits: 6,
     specialHandling: "Sterile handling required",
     requestedTests: ["Sterility Test", "HPLC Assay"],
-    assignToSectionInCharge: "user-005",
-    status: "Registration",
-    createdAt: "2026-02-12T14:00:00Z",
+    assignToSectionInCharge: ["user-002", "user-005"],
+    approvalDecisions: [
+      {
+        userId: "user-002",
+        userName: "Rajesh Malhotra",
+        decision: "approved",
+        comment: "All checks passed",
+        decidedAt: "2026-02-26T15:00:00Z",
+      },
+      {
+        userId: "user-005",
+        userName: "James Okonkwo",
+        decision: "pending",
+        comment: "",
+      },
+    ],
+    status: "EligibilityCheck",
+    createdAt: "2026-02-26T14:00:00Z",
     createdBy: "user-007",
   },
   {
@@ -775,9 +803,23 @@ export const SAMPLE_INTAKES: SampleIntakeRecord[] = [
     numberOfUnits: 3,
     specialHandling: "Protect from light",
     requestedTests: ["HPLC Assay", "Sterility Test"],
-    assignToSectionInCharge: "user-005",
+    assignToSectionInCharge: ["user-002", "user-005"],
+    approvalDecisions: [
+      {
+        userId: "user-002",
+        userName: "Rajesh Malhotra",
+        decision: "pending",
+        comment: "",
+      },
+      {
+        userId: "user-005",
+        userName: "James Okonkwo",
+        decision: "pending",
+        comment: "",
+      },
+    ],
     status: "EligibilityCheck",
-    createdAt: "2026-02-26T14:00:00Z",
+    createdAt: "2026-02-14T10:00:00Z",
     createdBy: "user-007",
   },
   {
@@ -1560,6 +1602,8 @@ export function getStatusLabel(status: WorkflowStage): string {
     QAReview: "QA Review",
     COA: "COA Issued",
     OnHold: "On Hold",
+    Rejected: "Rejected",
+    PendingApproval: "Pending Approval",
   };
   return labels[status] || status;
 }
@@ -1575,6 +1619,8 @@ export function getStatusBadgeClass(status: WorkflowStage): string {
     QAReview: "badge-qareview",
     COA: "badge-coa",
     OnHold: "badge-hold",
+    Rejected: "badge-rejected",
+    PendingApproval: "badge-pending-approval",
   };
   return classes[status] || "badge-pending";
 }
@@ -1602,6 +1648,8 @@ export function getWorkflowStageOrder(stage: WorkflowStage): number {
     QAReview: 6,
     COA: 7,
     OnHold: -1,
+    Rejected: -2,
+    PendingApproval: 1,
   };
   return order[stage] ?? 0;
 }

@@ -2,6 +2,8 @@ import React, {
   createContext,
   useContext,
   useState,
+  useEffect,
+  useRef,
   type ReactNode,
 } from "react";
 import {
@@ -22,14 +24,25 @@ interface RoleContextType {
   markAllAsRead: () => void;
   tasks: TaskRecord[];
   pendingTaskCount: number;
+  sessionSeconds: number;
+  uptimeSeconds: number;
+  logout: () => void;
+  loginTime: Date;
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
+
+// App start time (constant across re-renders)
+const APP_START_TIME = new Date();
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [activeUser, setActiveUserState] = useState<DummyUser>(DUMMY_USERS[0]);
   const [notificationsState, setNotificationsState] =
     useState<NotificationRecord[]>(ALL_NOTIFICATIONS);
+  const [sessionSeconds, setSessionSeconds] = useState(0);
+  const [uptimeSeconds, setUptimeSeconds] = useState(0);
+  const [loginTime, setLoginTime] = useState<Date>(new Date());
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const userNotifications = notificationsState.filter(
     (n) => n.userId === activeUser.id,
@@ -49,8 +62,32 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     return false;
   });
 
+  // Tick every second
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      const now = new Date();
+      setUptimeSeconds(
+        Math.floor((now.getTime() - APP_START_TIME.getTime()) / 1000),
+      );
+      setSessionSeconds((s) => s + 1);
+    }, 1000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
   const setActiveUser = (user: DummyUser) => {
     setActiveUserState(user);
+    // Reset session timer when switching user (simulate new login)
+    setSessionSeconds(0);
+    setLoginTime(new Date());
+  };
+
+  const logout = () => {
+    // Reset to first user and clear session (demo behaviour)
+    setActiveUserState(DUMMY_USERS[0]);
+    setSessionSeconds(0);
+    setLoginTime(new Date());
   };
 
   const markAsRead = (notifId: string) => {
@@ -78,6 +115,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         markAllAsRead,
         tasks: userTasks,
         pendingTaskCount: userTasks.length,
+        sessionSeconds,
+        uptimeSeconds,
+        logout,
+        loginTime,
       }}
     >
       {children}

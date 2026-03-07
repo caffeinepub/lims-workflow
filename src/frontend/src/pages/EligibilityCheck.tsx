@@ -5,17 +5,26 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   ClipboardCheck,
+  Clock,
   Info,
+  ShieldCheck,
   XCircle,
 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
-import { AUDIT_LOG, SAMPLE_INTAKES, getSampleById } from "../lib/mockData";
+import {
+  AUDIT_LOG,
+  DUMMY_USERS,
+  SAMPLE_INTAKES,
+  type SICApprovalRecord,
+  getSampleById,
+} from "../lib/mockData";
 
 const ACCEPTANCE_CHECKLIST = [
   {
@@ -71,12 +80,21 @@ export function EligibilityCheck({
   const [feasibilityChecked, setFeasibilityChecked] = useState<
     Record<string, boolean>
   >({});
-  const [holdComment, setHoldComment] = useState("");
+
+  // Per-assignee decision comments (local state before committing)
+  const [decisionComments, setDecisionComments] = useState<
+    Record<string, string>
+  >({});
+  const [commentErrors, setCommentErrors] = useState<Record<string, string>>(
+    {},
+  );
   const [submitting, setSubmitting] = useState(false);
-  const [holdError, setHoldError] = useState("");
 
   const eligibleSamples = SAMPLE_INTAKES.filter(
-    (s) => s.status === "Intake" || s.status === "EligibilityCheck",
+    (s) =>
+      s.status === "Intake" ||
+      s.status === "EligibilityCheck" ||
+      s.status === "PendingApproval",
   );
   const sample = selectedSampleId ? getSampleById(selectedSampleId) : null;
 
@@ -86,53 +104,155 @@ export function EligibilityCheck({
   const allFeasibilityChecked = FEASIBILITY_CHECKLIST.every(
     (item) => feasibilityChecked[item.id],
   );
-  const canApprove = allAcceptanceChecked && allFeasibilityChecked;
+  const checklistsComplete = allAcceptanceChecked && allFeasibilityChecked;
 
-  const handleDecision = async (decision: "eligible" | "hold") => {
-    if (decision === "hold" && !holdComment.trim()) {
-      setHoldError("Please provide a reason for placing the sample on hold");
+  // Derive assignee list: support both string and string[] for backwards compat
+  const getAssignees = (): SICApprovalRecord[] => {
+    if (!sample) return [];
+    // If approvalDecisions exist, use them
+    if (sample.approvalDecisions && sample.approvalDecisions.length > 0) {
+      return sample.approvalDecisions;
+    }
+    // Legacy: single string assignee
+    const ids = Array.isArray(sample.assignToSectionInCharge)
+      ? sample.assignToSectionInCharge
+      : [sample.assignToSectionInCharge];
+    return ids.map((uid) => {
+      const user = DUMMY_USERS.find((u) => u.id === uid);
+      return {
+        userId: uid,
+        userName: user?.name ?? uid,
+        decision: "pending" as const,
+        comment: "",
+      };
+    });
+  };
+
+  const assignees = getAssignees();
+
+  // Current user's assignee row (if they are one)
+  const myRow = assignees.find((a) => a.userId === activeUser.id);
+  const isAssignedToCurrentUser = !!myRow;
+
+  // Compute aggregate status from decisions
+  const computeAggregateStatus = (decisions: SICApprovalRecord[]) => {
+    if (decisions.some((d) => d.decision === "hold")) return "OnHold";
+    if (decisions.some((d) => d.decision === "rejected")) return "Rejected";
+    if (decisions.every((d) => d.decision === "approved"))
+      return "Registration";
+    return "PendingApproval";
+  };
+
+  const handleDecision = async (decision: "approved" | "rejected" | "hold") => {
+    if (!sample) return;
+    const comment = decisionComments[activeUser.id] ?? "";
+
+    // For hold/reject, comment is required
+    if ((decision === "hold" || decision === "rejected") && !comment.trim()) {
+      setCommentErrors((prev) => ({
+        ...prev,
+        [activeUser.id]: `Please provide a reason for ${decision === "hold" ? "placing on hold" : "rejection"}`,
+      }));
       return;
     }
-    setHoldError("");
+    setCommentErrors((prev) => ({ ...prev, [activeUser.id]: "" }));
+
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 600));
 
     const idx = SAMPLE_INTAKES.findIndex(
       (s) => s.sampleId === selectedSampleId,
     );
     if (idx !== -1) {
+      // Build updated approval decisions
+      const currentDecisions: SICApprovalRecord[] =
+        SAMPLE_INTAKES[idx].approvalDecisions ?? assignees;
+
+      const updatedDecisions = currentDecisions.map((d) =>
+        d.userId === activeUser.id
+          ? {
+              ...d,
+              decision,
+              comment,
+              decidedAt: new Date().toISOString(),
+            }
+          : d,
+      );
+
+      const newStatus = computeAggregateStatus(updatedDecisions);
+
       SAMPLE_INTAKES[idx] = {
         ...SAMPLE_INTAKES[idx],
-        status: decision === "eligible" ? "Registration" : "OnHold",
+        approvalDecisions: updatedDecisions,
+        status: newStatus,
       };
+
       AUDIT_LOG.push({
         id: `al-${Date.now()}`,
         timestamp: new Date().toISOString(),
         userId: activeUser.id,
         userName: activeUser.name,
-        action: decision === "eligible" ? "ELIGIBLE" : "HOLD",
-        entity: "SampleIntake",
+        action: decision.toUpperCase(),
+        entity: "EligibilityCheck",
         entityId: selectedSampleId,
-        details:
-          decision === "eligible"
-            ? "Sample declared eligible after checklist verification"
-            : `Sample placed on hold: ${holdComment}`,
+        details: comment
+          ? `${activeUser.name} marked ${decision}: ${comment}`
+          : `${activeUser.name} marked ${decision}`,
       });
-    }
 
-    setSubmitting(false);
-    if (decision === "eligible") {
-      toast.success("Sample declared Eligible", {
-        description: "Proceeding to Registration stage",
-      });
-      navigate({
-        to: "/registration/$sampleId",
-        params: { sampleId: selectedSampleId },
-      });
+      setSubmitting(false);
+
+      if (newStatus === "Registration") {
+        toast.success("All assignees approved — Sample is now Eligible", {
+          description: "Proceeding to Registration stage",
+        });
+        navigate({
+          to: "/registration/$sampleId",
+          params: { sampleId: selectedSampleId },
+        });
+      } else if (newStatus === "OnHold") {
+        toast.warning("Sample placed On Hold", {
+          description: `${activeUser.name} placed the sample on hold`,
+        });
+        navigate({ to: "/" });
+      } else if (newStatus === "Rejected") {
+        toast.error("Sample Rejected", {
+          description: `${activeUser.name} rejected this sample`,
+        });
+        navigate({ to: "/" });
+      } else {
+        // PendingApproval
+        const updatedForCount = assignees.map((a) =>
+          a.userId === activeUser.id ? { ...a, decision } : a,
+        );
+        const stillPending = updatedForCount.filter(
+          (d) => d.decision === "pending",
+        ).length;
+        toast.info("Your decision recorded — awaiting other approvals", {
+          description: `${stillPending} approval(s) still pending`,
+        });
+        // Refresh view
+        setSelectedSampleId("");
+        setTimeout(() => setSelectedSampleId(selectedSampleId), 50);
+      }
     } else {
-      toast.warning("Sample placed On Hold", { description: holdComment });
-      navigate({ to: "/" });
+      setSubmitting(false);
     }
+  };
+
+  const decisionColor = (d: string) => {
+    if (d === "approved")
+      return "bg-emerald-50 border-emerald-200 text-emerald-700";
+    if (d === "rejected") return "bg-red-50 border-red-200 text-red-700";
+    if (d === "hold") return "bg-amber-50 border-amber-200 text-amber-700";
+    return "bg-muted/40 border-border text-muted-foreground";
+  };
+
+  const decisionIcon = (d: string) => {
+    if (d === "approved") return <CheckCircle2 className="h-4 w-4" />;
+    if (d === "rejected") return <XCircle className="h-4 w-4" />;
+    if (d === "hold") return <AlertTriangle className="h-4 w-4" />;
+    return <Clock className="h-4 w-4" />;
   };
 
   return (
@@ -143,6 +263,7 @@ export function EligibilityCheck({
             variant="ghost"
             size="icon"
             onClick={() => navigate({ to: "/" })}
+            data-ocid="eligibility.back.button"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -160,7 +281,10 @@ export function EligibilityCheck({
 
       {/* Sample Selection */}
       {!sample && (
-        <Card className="lims-card mb-6">
+        <Card
+          className="lims-card mb-6"
+          data-ocid="eligibility.sample_list.card"
+        >
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold">
               Select Sample for Eligibility Check
@@ -168,7 +292,10 @@ export function EligibilityCheck({
           </CardHeader>
           <CardContent>
             {eligibleSamples.length === 0 ? (
-              <div className="flex items-center gap-2 text-muted-foreground py-4">
+              <div
+                className="flex items-center gap-2 text-muted-foreground py-4"
+                data-ocid="eligibility.sample_list.empty_state"
+              >
                 <Info className="h-4 w-4" />
                 <span className="text-sm">
                   No samples pending eligibility check
@@ -176,11 +303,12 @@ export function EligibilityCheck({
               </div>
             ) : (
               <div className="space-y-2">
-                {eligibleSamples.map((s) => (
+                {eligibleSamples.map((s, idx) => (
                   <button
                     type="button"
                     key={s.sampleId}
                     onClick={() => setSelectedSampleId(s.sampleId)}
+                    data-ocid={`eligibility.sample_list.item.${idx + 1}`}
                     className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
@@ -203,9 +331,10 @@ export function EligibilityCheck({
         </Card>
       )}
 
-      {/* Sample Info */}
+      {/* Sample Info + Check */}
       {sample && (
         <>
+          {/* Sample Header */}
           <Card className="lims-card mb-6 border-l-4 border-l-primary">
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
@@ -234,6 +363,7 @@ export function EligibilityCheck({
                   size="sm"
                   onClick={() => setSelectedSampleId("")}
                   className="text-xs ml-4"
+                  data-ocid="eligibility.change_sample.button"
                 >
                   Change
                 </Button>
@@ -241,6 +371,7 @@ export function EligibilityCheck({
             </CardContent>
           </Card>
 
+          {/* Checklists */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {/* Acceptance Checklist */}
             <Card className="lims-card">
@@ -263,6 +394,7 @@ export function EligibilityCheck({
                   >
                     <Checkbox
                       id={item.id}
+                      data-ocid={`eligibility.acceptance.${item.id}.checkbox`}
                       checked={!!acceptanceChecked[item.id]}
                       onCheckedChange={(checked) =>
                         setAcceptanceChecked((prev) => ({
@@ -303,6 +435,7 @@ export function EligibilityCheck({
                   >
                     <Checkbox
                       id={item.id}
+                      data-ocid={`eligibility.feasibility.${item.id}.checkbox`}
                       checked={!!feasibilityChecked[item.id]}
                       onCheckedChange={(checked) =>
                         setFeasibilityChecked((prev) => ({
@@ -323,62 +456,195 @@ export function EligibilityCheck({
             </Card>
           </div>
 
-          {/* Hold Comment */}
+          {/* Section In-Charge Approval Panel */}
           <Card className="lims-card mb-6">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <XCircle className="h-4 w-4 text-destructive" />
-                Hold Reason (required if placing on hold)
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                Section In-Charge Approvals
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  All assigned must approve for sample to proceed
+                </span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <Textarea
-                placeholder="Describe the reason for placing this sample on hold..."
-                value={holdComment}
-                onChange={(e) => {
-                  setHoldComment(e.target.value);
-                  setHoldError("");
-                }}
-                rows={3}
-                className={holdError ? "border-destructive" : ""}
-              />
-              {holdError && (
-                <p className="text-xs text-destructive mt-1">{holdError}</p>
-              )}
+            <CardContent className="space-y-4">
+              {assignees.map((assignee, idx) => {
+                const isMe = assignee.userId === activeUser.id;
+                const alreadyDecided = assignee.decision !== "pending";
+                const canAct = isMe && !alreadyDecided && checklistsComplete;
+                const commentVal = decisionComments[assignee.userId] ?? "";
+
+                return (
+                  <div
+                    key={assignee.userId}
+                    data-ocid={`eligibility.assignee_row.item.${idx + 1}`}
+                    className={`rounded-lg border p-4 transition-all ${
+                      alreadyDecided
+                        ? decisionColor(assignee.decision)
+                        : isMe
+                          ? "border-primary/40 bg-primary/5"
+                          : "border-border bg-muted/20"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center text-xs text-white font-bold flex-shrink-0">
+                          {assignee.userName.charAt(0)}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold">
+                            {assignee.userName}
+                            {isMe && (
+                              <span className="ml-2 text-xs font-normal text-primary">
+                                (You)
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {DUMMY_USERS.find((u) => u.id === assignee.userId)
+                              ?.designation ?? "Section In-Charge"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Decision badge */}
+                      <div
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${decisionColor(assignee.decision)}`}
+                      >
+                        {decisionIcon(assignee.decision)}
+                        <span className="capitalize">{assignee.decision}</span>
+                      </div>
+                    </div>
+
+                    {/* Comment display if already decided */}
+                    {alreadyDecided && assignee.comment && (
+                      <p className="mt-2 text-xs italic text-current/70 ml-11">
+                        "{assignee.comment}"
+                      </p>
+                    )}
+
+                    {/* Action area for current user if not yet decided */}
+                    {isMe && !alreadyDecided && (
+                      <div className="mt-3 ml-11 space-y-3">
+                        {!checklistsComplete && (
+                          <p className="text-xs text-amber-600 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Complete all checklist items above before deciding
+                          </p>
+                        )}
+
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium">
+                            Comment{" "}
+                            <span className="text-muted-foreground font-normal">
+                              (required for Hold / Reject)
+                            </span>
+                          </Label>
+                          <Textarea
+                            placeholder="Add a comment or reason..."
+                            data-ocid="eligibility.decision_comment.textarea"
+                            value={commentVal}
+                            onChange={(e) => {
+                              setDecisionComments((prev) => ({
+                                ...prev,
+                                [assignee.userId]: e.target.value,
+                              }));
+                              setCommentErrors((prev) => ({
+                                ...prev,
+                                [assignee.userId]: "",
+                              }));
+                            }}
+                            rows={2}
+                            disabled={!checklistsComplete}
+                            className={
+                              commentErrors[assignee.userId]
+                                ? "border-destructive"
+                                : ""
+                            }
+                          />
+                          {commentErrors[assignee.userId] && (
+                            <p className="text-xs text-destructive">
+                              {commentErrors[assignee.userId]}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={!canAct || submitting}
+                            data-ocid="eligibility.hold.button"
+                            onClick={() => handleDecision("hold")}
+                            className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+                          >
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            Hold
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={!canAct || submitting}
+                            data-ocid="eligibility.reject.button"
+                            onClick={() => handleDecision("rejected")}
+                            className="gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            Reject
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={!canAct || submitting}
+                            data-ocid="eligibility.approve.button"
+                            onClick={() => handleDecision("approved")}
+                            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          >
+                            {submitting ? (
+                              <span className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            )}
+                            Approve
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Awaiting message for others */}
+                    {!isMe && !alreadyDecided && (
+                      <p className="mt-2 ml-11 text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Awaiting decision
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Summary status */}
+              <div className="mt-2 pt-3 border-t border-border">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {assignees.filter((a) => a.decision === "approved").length}{" "}
+                    of {assignees.length} approved
+                  </span>
+                  {!isAssignedToCurrentUser && (
+                    <span className="text-amber-600 flex items-center gap-1">
+                      <Info className="h-3 w-3" />
+                      You are not an assigned reviewer for this sample
+                    </span>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Decision Buttons */}
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="destructive"
-              onClick={() => handleDecision("hold")}
-              disabled={submitting}
-              className="gap-2"
-            >
-              {submitting ? (
-                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <XCircle className="h-4 w-4" />
-              )}
-              Place on Hold
-            </Button>
-            <Button
-              onClick={() => handleDecision("eligible")}
-              disabled={!canApprove || submitting}
-              className="gap-2"
-            >
-              {submitting ? (
-                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
-              Declare Eligible
-            </Button>
-          </div>
-          {!canApprove && (
-            <p className="text-xs text-muted-foreground text-right mt-2">
-              Complete all checklist items to enable the Eligible button
+          {!checklistsComplete && (
+            <p className="text-xs text-muted-foreground text-right mb-4">
+              Complete all checklist items to enable approval buttons
             </p>
           )}
         </>

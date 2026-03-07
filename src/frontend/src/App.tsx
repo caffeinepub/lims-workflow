@@ -20,6 +20,7 @@ import { Reports } from "./pages/Reports";
 import { SICReview } from "./pages/SICReview";
 import { SampleIntake } from "./pages/SampleIntake";
 import { SampleRegistration } from "./pages/SampleRegistration";
+import { TestMasters } from "./pages/TestMasters";
 import { TestSpecification } from "./pages/TestSpecification";
 
 // Root route with layout
@@ -153,6 +154,11 @@ const adminRoute = createRoute({
   path: "/admin",
   component: AdminPanel,
 });
+const testMastersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/test-masters",
+  component: TestMasters,
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -175,6 +181,7 @@ const routeTree = rootRoute.addChildren([
   notificationsRoute,
   reportsRoute,
   adminRoute,
+  testMastersRoute,
 ]);
 
 const router = createRouter({ routeTree });

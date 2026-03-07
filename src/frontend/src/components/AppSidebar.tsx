@@ -4,6 +4,7 @@ import {
   BarChart3,
   Beaker,
   Bell,
+  BookOpen,
   CheckSquare,
   ClipboardCheck,
   Eye,
@@ -17,7 +18,6 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useRole } from "../contexts/RoleContext";
-import { RoleSwitcher } from "./RoleSwitcher";
 
 interface NavItem {
   label: string;
@@ -25,7 +25,85 @@ interface NavItem {
   icon: React.ReactNode;
   roles?: string[];
   badge?: number;
+  color?: string;
 }
+
+// Teal-to-blue spectrum colors per nav item
+const NAV_COLORS: Record<
+  string,
+  { active: string; hover: string; icon: string }
+> = {
+  "/": {
+    active: "from-teal-500 to-cyan-500",
+    hover: "hover:bg-teal-500/10",
+    icon: "text-teal-300",
+  },
+  "/sample-intake": {
+    active: "from-cyan-500 to-sky-500",
+    hover: "hover:bg-cyan-500/10",
+    icon: "text-cyan-300",
+  },
+  "/eligibility-check": {
+    active: "from-sky-500 to-blue-500",
+    hover: "hover:bg-sky-500/10",
+    icon: "text-sky-300",
+  },
+  "/registration": {
+    active: "from-blue-500 to-blue-600",
+    hover: "hover:bg-blue-500/10",
+    icon: "text-blue-300",
+  },
+  "/test-specification": {
+    active: "from-blue-600 to-indigo-500",
+    hover: "hover:bg-blue-600/10",
+    icon: "text-blue-300",
+  },
+  "/analysis": {
+    active: "from-indigo-500 to-violet-500",
+    hover: "hover:bg-indigo-500/10",
+    icon: "text-indigo-300",
+  },
+  "/sic-review": {
+    active: "from-violet-500 to-purple-500",
+    hover: "hover:bg-violet-500/10",
+    icon: "text-violet-300",
+  },
+  "/qa-review": {
+    active: "from-purple-500 to-fuchsia-500",
+    hover: "hover:bg-purple-500/10",
+    icon: "text-purple-300",
+  },
+  "/coa": {
+    active: "from-teal-400 to-emerald-500",
+    hover: "hover:bg-teal-400/10",
+    icon: "text-teal-300",
+  },
+  "/my-tasks": {
+    active: "from-amber-500 to-orange-500",
+    hover: "hover:bg-amber-500/10",
+    icon: "text-amber-300",
+  },
+  "/notifications": {
+    active: "from-rose-500 to-pink-500",
+    hover: "hover:bg-rose-500/10",
+    icon: "text-rose-300",
+  },
+  "/reports": {
+    active: "from-sky-500 to-teal-500",
+    hover: "hover:bg-sky-500/10",
+    icon: "text-sky-300",
+  },
+  "/admin": {
+    active: "from-slate-500 to-slate-600",
+    hover: "hover:bg-slate-500/10",
+    icon: "text-slate-300",
+  },
+  "/test-masters": {
+    active: "from-cyan-600 to-teal-600",
+    hover: "hover:bg-cyan-600/10",
+    icon: "text-cyan-300",
+  },
+};
 
 export function AppSidebar() {
   const { activeUser, unreadCount, pendingTaskCount } = useRole();
@@ -96,6 +174,12 @@ export function AppSidebar() {
       roles: ["admin", "qa", "sectionInCharge"],
     },
     {
+      label: "Test Masters",
+      path: "/test-masters",
+      icon: <BookOpen className="h-4 w-4" />,
+      roles: ["admin", "qa", "sectionInCharge"],
+    },
+    {
       label: "Admin Panel",
       path: "/admin",
       icon: <Settings className="h-4 w-4" />,
@@ -114,17 +198,44 @@ export function AppSidebar() {
   };
 
   return (
-    <aside className="sidebar-wrapper fixed left-0 top-0 h-screen w-56 bg-sidebar flex flex-col z-40 border-r border-sidebar-border">
+    <aside
+      className="sidebar-wrapper fixed left-0 top-0 h-screen w-56 flex flex-col z-40"
+      style={{
+        background:
+          "linear-gradient(180deg, #0d2137 0%, #0a1628 40%, #061020 100%)",
+        borderRight: "1px solid rgba(45, 180, 210, 0.15)",
+      }}
+    >
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 py-4 border-b border-sidebar-border">
-        <div className="h-8 w-8 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
-          <Beaker className="h-4 w-4 text-sidebar-primary-foreground" />
+      <div
+        className="flex items-center gap-2.5 px-4 py-4"
+        style={{ borderBottom: "1px solid rgba(45, 180, 210, 0.15)" }}
+      >
+        <div
+          className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0"
+          style={{
+            background: "linear-gradient(135deg, #0ea5e9 0%, #14b8a6 100%)",
+            boxShadow: "0 0 16px rgba(14, 165, 233, 0.4)",
+          }}
+        >
+          <Beaker className="h-5 w-5 text-white" />
         </div>
         <div>
-          <div className="text-sm font-bold text-sidebar-foreground leading-tight">
-            PharmaLIMS
+          <div
+            className="text-sm font-bold leading-tight"
+            style={{
+              background: "linear-gradient(90deg, #38bdf8, #2dd4bf)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            DKR LIMS
           </div>
-          <div className="text-[10px] text-sidebar-foreground/50 leading-tight">
+          <div
+            className="text-[10px] leading-tight"
+            style={{ color: "rgba(148,163,184,0.6)" }}
+          >
             Lab Information System
           </div>
         </div>
@@ -133,53 +244,75 @@ export function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         <div className="space-y-0.5">
-          {visibleItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors group ${
-                isActive(item.path)
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <span
-                className={
-                  isActive(item.path)
-                    ? "text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground/60 group-hover:text-sidebar-accent-foreground"
+          {visibleItems.map((item) => {
+            const colors = NAV_COLORS[item.path] ?? NAV_COLORS["/"];
+            const active = isActive(item.path);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                data-ocid={`sidebar.${item.path.replace(/\//g, "").replace(/-/g, "_") || "dashboard"}.link`}
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200 group ${
+                  active
+                    ? `bg-gradient-to-r ${colors.active} text-white font-semibold shadow-lg`
+                    : `text-slate-400 ${colors.hover} hover:text-white`
+                }`}
+                style={
+                  active
+                    ? { boxShadow: "0 2px 12px rgba(14, 165, 233, 0.25)" }
+                    : {}
                 }
               >
-                {item.icon}
-              </span>
-              <span className="flex-1 truncate">{item.label}</span>
-              {item.badge !== undefined && item.badge > 0 && (
                 <span
-                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
-                    isActive(item.path)
-                      ? "bg-white/20 text-white"
-                      : "bg-red-500 text-white"
+                  className={`transition-colors duration-200 ${
+                    active
+                      ? "text-white"
+                      : `${colors.icon} group-hover:text-white`
                   }`}
                 >
-                  {item.badge > 99 ? "99+" : item.badge}
+                  {item.icon}
                 </span>
-              )}
-            </Link>
-          ))}
+                <span className="flex-1 truncate">{item.label}</span>
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
+                    style={{
+                      background: active ? "rgba(255,255,255,0.25)" : "#ef4444",
+                      color: "white",
+                    }}
+                  >
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </div>
       </nav>
 
+      {/* Subtle teal glow divider */}
+      <div
+        style={{
+          height: "1px",
+          background:
+            "linear-gradient(90deg, transparent, rgba(45,212,191,0.3), transparent)",
+          margin: "0 8px",
+        }}
+      />
+
       {/* Footer */}
-      <div className="border-t border-sidebar-border p-2 space-y-2">
-        <RoleSwitcher />
+      <div className="p-2 pt-2">
         <div className="text-center">
-          <p className="text-[9px] text-sidebar-foreground/30 leading-tight">
+          <p
+            className="text-[9px] leading-tight"
+            style={{ color: "rgba(148,163,184,0.3)" }}
+          >
             © {new Date().getFullYear()} Built with ❤️ using{" "}
             <a
-              href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "pharmalims")}`}
+              href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "dkrlims")}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline hover:text-sidebar-foreground/60"
+              className="underline hover:text-slate-400"
             >
               caffeine.ai
             </a>

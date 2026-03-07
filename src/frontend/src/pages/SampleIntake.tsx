@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, FlaskConical, Save } from "lucide-react";
+import { ArrowLeft, FlaskConical, Save, X } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -54,7 +54,7 @@ export function SampleIntake() {
     dateOfReceipt: new Date().toISOString().split("T")[0],
     numberOfUnits: 1,
     specialHandling: "",
-    assignToSectionInCharge: "",
+    assignToSectionInCharge: [] as string[],
   });
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -62,6 +62,26 @@ export function SampleIntake() {
   const sectionInCharges = DUMMY_USERS.filter(
     (u) => u.role === "sectionInCharge",
   );
+
+  const addAssignee = (userId: string) => {
+    if (!userId || form.assignToSectionInCharge.includes(userId)) return;
+    setForm((prev) => ({
+      ...prev,
+      assignToSectionInCharge: [...prev.assignToSectionInCharge, userId],
+    }));
+    if (errors.assignToSectionInCharge) {
+      setErrors((prev) => ({ ...prev, assignToSectionInCharge: "" }));
+    }
+  };
+
+  const removeAssignee = (userId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      assignToSectionInCharge: prev.assignToSectionInCharge.filter(
+        (id) => id !== userId,
+      ),
+    }));
+  };
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -75,7 +95,8 @@ export function SampleIntake() {
     if (!form.physicalForm) e.physicalForm = "Required";
     if (!form.dateOfReceipt) e.dateOfReceipt = "Required";
     if (form.numberOfUnits < 1) e.numberOfUnits = "Must be at least 1";
-    if (!form.assignToSectionInCharge) e.assignToSectionInCharge = "Required";
+    if (form.assignToSectionInCharge.length < 2)
+      e.assignToSectionInCharge = "Select at least 2 Section In-Charge users";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -86,9 +107,30 @@ export function SampleIntake() {
     setSubmitting(true);
     await new Promise((r) => setTimeout(r, 800));
     const newId = `SI-2026-${String(SAMPLE_INTAKES.length + 1).padStart(3, "0")}`;
+
+    const approvalDecisions = form.assignToSectionInCharge.map((uid) => {
+      const user = DUMMY_USERS.find((u) => u.id === uid);
+      return {
+        userId: uid,
+        userName: user?.name ?? uid,
+        decision: "pending" as const,
+        comment: "",
+      };
+    });
+
     SAMPLE_INTAKES.push({
       sampleId: newId,
-      ...form,
+      customerName: form.customerName,
+      contactPerson: form.contactPerson,
+      emailAddress: form.emailAddress,
+      sampleName: form.sampleName,
+      sampleType: form.sampleType,
+      physicalForm: form.physicalForm,
+      dateOfReceipt: form.dateOfReceipt,
+      numberOfUnits: form.numberOfUnits,
+      specialHandling: form.specialHandling,
+      assignToSectionInCharge: form.assignToSectionInCharge,
+      approvalDecisions,
       status: "Intake",
       createdAt: new Date().toISOString(),
       createdBy: activeUser.id,
@@ -106,6 +148,11 @@ export function SampleIntake() {
       setForm((prev) => ({ ...prev, [key]: e.target.value })),
   });
 
+  // Users not yet selected
+  const availableAssignees = sectionInCharges.filter(
+    (u) => !form.assignToSectionInCharge.includes(u.id),
+  );
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="page-header">
@@ -114,6 +161,7 @@ export function SampleIntake() {
             variant="ghost"
             size="icon"
             onClick={() => navigate({ to: "/" })}
+            data-ocid="intake.back.button"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -145,6 +193,7 @@ export function SampleIntake() {
               <Input
                 id="customerName"
                 placeholder="e.g. BioPharm Solutions Ltd"
+                data-ocid="intake.customer_name.input"
                 {...field("customerName")}
                 className={errors.customerName ? "border-destructive" : ""}
               />
@@ -161,6 +210,7 @@ export function SampleIntake() {
               <Input
                 id="contactPerson"
                 placeholder="e.g. Dr. Anita Patel"
+                data-ocid="intake.contact_person.input"
                 {...field("contactPerson")}
                 className={errors.contactPerson ? "border-destructive" : ""}
               />
@@ -178,6 +228,7 @@ export function SampleIntake() {
                 id="emailAddress"
                 type="email"
                 placeholder="contact@company.com"
+                data-ocid="intake.email.input"
                 {...field("emailAddress")}
                 className={errors.emailAddress ? "border-destructive" : ""}
               />
@@ -205,6 +256,7 @@ export function SampleIntake() {
               <Input
                 id="sampleName"
                 placeholder="e.g. Amoxicillin Trihydrate"
+                data-ocid="intake.sample_name.input"
                 {...field("sampleName")}
                 className={errors.sampleName ? "border-destructive" : ""}
               />
@@ -221,6 +273,7 @@ export function SampleIntake() {
                 onValueChange={(v) => setForm((p) => ({ ...p, sampleType: v }))}
               >
                 <SelectTrigger
+                  data-ocid="intake.sample_type.select"
                   className={errors.sampleType ? "border-destructive" : ""}
                 >
                   <SelectValue placeholder="Select type" />
@@ -248,6 +301,7 @@ export function SampleIntake() {
                 }
               >
                 <SelectTrigger
+                  data-ocid="intake.physical_form.select"
                   className={errors.physicalForm ? "border-destructive" : ""}
                 >
                   <SelectValue placeholder="Select form" />
@@ -273,6 +327,7 @@ export function SampleIntake() {
               <Input
                 id="dateOfReceipt"
                 type="date"
+                data-ocid="intake.date_of_receipt.input"
                 {...field("dateOfReceipt")}
                 className={errors.dateOfReceipt ? "border-destructive" : ""}
               />
@@ -290,6 +345,7 @@ export function SampleIntake() {
                 id="numberOfUnits"
                 type="number"
                 min={1}
+                data-ocid="intake.number_of_units.input"
                 value={form.numberOfUnits}
                 onChange={(e) =>
                   setForm((p) => ({
@@ -312,6 +368,7 @@ export function SampleIntake() {
               <Textarea
                 id="specialHandling"
                 placeholder="e.g. Store at 2-8°C, protect from light..."
+                data-ocid="intake.special_handling.textarea"
                 rows={2}
                 {...field("specialHandling")}
               />
@@ -326,36 +383,83 @@ export function SampleIntake() {
               Assignment
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-1.5 max-w-sm">
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
               <Label className="text-xs font-medium">
                 Assign to Section In-Charge{" "}
                 <span className="text-destructive">*</span>
+                <span className="text-muted-foreground font-normal ml-1">
+                  (select 2 or more — all must approve)
+                </span>
               </Label>
-              <Select
-                value={form.assignToSectionInCharge}
-                onValueChange={(v) =>
-                  setForm((p) => ({ ...p, assignToSectionInCharge: v }))
-                }
-              >
-                <SelectTrigger
-                  className={
-                    errors.assignToSectionInCharge ? "border-destructive" : ""
-                  }
-                >
-                  <SelectValue placeholder="Select Section In-Charge" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sectionInCharges.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name} — {u.section}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+              {/* Selected tags */}
+              {form.assignToSectionInCharge.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-3 rounded-md border border-border bg-muted/30 min-h-[44px]">
+                  {form.assignToSectionInCharge.map((uid) => {
+                    const user = sectionInCharges.find((u) => u.id === uid);
+                    if (!user) return null;
+                    return (
+                      <span
+                        key={uid}
+                        data-ocid={`intake.assignee_tag.${uid}`}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-teal-500/15 to-blue-500/15 text-teal-700 border border-teal-200 dark:text-teal-300 dark:border-teal-700"
+                      >
+                        <span className="w-5 h-5 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center text-[10px] text-white font-bold">
+                          {user.name.charAt(0)}
+                        </span>
+                        {user.name}
+                        <span className="text-muted-foreground">
+                          — {user.section}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeAssignee(uid)}
+                          data-ocid={`intake.assignee_remove.${uid}`}
+                          className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5 transition-colors"
+                          aria-label={`Remove ${user.name}`}
+                        >
+                          <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Dropdown to add more */}
+              {availableAssignees.length > 0 && (
+                <Select onValueChange={addAssignee} value="">
+                  <SelectTrigger
+                    data-ocid="intake.assignee_add.select"
+                    className={
+                      errors.assignToSectionInCharge
+                        ? "border-destructive max-w-sm"
+                        : "max-w-sm"
+                    }
+                  >
+                    <SelectValue placeholder="+ Add Section In-Charge" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableAssignees.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name} — {u.section}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
               {errors.assignToSectionInCharge && (
                 <p className="text-xs text-destructive">
                   {errors.assignToSectionInCharge}
+                </p>
+              )}
+
+              {form.assignToSectionInCharge.length >= 2 && (
+                <p className="text-xs text-emerald-600">
+                  {form.assignToSectionInCharge.length} assignees selected — all
+                  must approve before sample proceeds to Registration
                 </p>
               )}
             </div>
@@ -367,11 +471,17 @@ export function SampleIntake() {
           <Button
             type="button"
             variant="outline"
+            data-ocid="intake.cancel.button"
             onClick={() => navigate({ to: "/" })}
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={submitting} className="gap-2">
+          <Button
+            type="submit"
+            disabled={submitting}
+            data-ocid="intake.submit.button"
+            className="gap-2"
+          >
             {submitting ? (
               <>
                 <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

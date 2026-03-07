@@ -14,14 +14,27 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, FileText, Info, Plus, Save, Trash2 } from "lucide-react";
-import React, { useState } from "react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  FlaskConical,
+  Info,
+  Plus,
+  Save,
+  Trash2,
+  UserCheck,
+} from "lucide-react";
+import type React from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
 import {
   AUDIT_LOG,
-  DUMMY_USERS,
+  CLIENTS,
+  type Client,
   type RFARecord,
   RFA_RECORDS,
   SAMPLE_INTAKES,
@@ -36,15 +49,6 @@ interface SampleRegistrationProps {
 
 const MARKETS = ["Domestic", "Export", "Both"];
 const REPORT_FORMS = ["Electronic", "Hard Copy", "Electronic + Hard Copy"];
-const TESTING_PURPOSES = [
-  "Release Testing",
-  "Stability Testing",
-  "Method Validation",
-  "R&D",
-  "Regulatory Submission",
-];
-const TEST_METHODS = ["USP", "BP", "IP", "EP", "In-house", "USP/BP", "BP/IP"];
-const ASSIGNEE_TYPES = ["Internal", "External", "Contract"];
 const TEST_TYPES = ["Chemical", "Microbiological", "Physical", "Biological"];
 const PACKING_TYPES = [
   "HDPE Container",
@@ -74,6 +78,427 @@ function emptyDetail(): SampleDetail {
   };
 }
 
+interface SampleDetailsCardsProps {
+  sampleDetails: SampleDetail[];
+  setSampleDetails: React.Dispatch<React.SetStateAction<SampleDetail[]>>;
+  updateDetail: (idx: number, key: keyof SampleDetail, value: unknown) => void;
+  toggleDetailParam: (idx: number, param: string) => void;
+}
+
+function SampleDetailsCards({
+  sampleDetails,
+  setSampleDetails,
+  updateDetail,
+  toggleDetailParam,
+}: SampleDetailsCardsProps) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  const toggleCollapse = (id: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const addCard = () => {
+    setSampleDetails((prev) => [...prev, emptyDetail()]);
+  };
+
+  const removeCard = (idx: number) => {
+    setSampleDetails((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="mt-6 space-y-4">
+      {/* Section Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FlaskConical className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">
+            Sample Details
+          </h2>
+          <Badge variant="secondary" className="text-xs px-2 py-0.5">
+            {sampleDetails.length}{" "}
+            {sampleDetails.length === 1 ? "Sample" : "Samples"}
+          </Badge>
+        </div>
+        <Button
+          size="sm"
+          onClick={addCard}
+          className="gap-1.5 text-xs bg-primary hover:bg-primary/90"
+          data-ocid="sample_details.add_sample_row.button"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add Sample
+        </Button>
+      </div>
+
+      {/* Cards */}
+      {sampleDetails.map((detail, idx) => {
+        const isCollapsed = collapsed.has(detail.id);
+        const availableParams = detail.testType
+          ? TEST_SAMPLES.filter(
+              (ts) => ts.testType === detail.testType && ts.status === "active",
+            ).flatMap((ts) => ts.parameters)
+          : [];
+
+        const cardLabel = detail.sampleName
+          ? detail.sampleName
+          : `Sample ${idx + 1}`;
+        const batchLabel = detail.batchNumber
+          ? `· Batch ${detail.batchNumber}`
+          : "";
+        const selectedCount = detail.testParameters.length;
+
+        return (
+          <Card
+            key={detail.id}
+            className="lims-card border border-border/60 shadow-sm overflow-hidden"
+            data-ocid={`sample_details.item.${idx + 1}`}
+          >
+            {/* Card Header */}
+            <button
+              type="button"
+              className="w-full flex items-center justify-between px-4 py-3 bg-muted/20 border-b border-border/40 cursor-pointer select-none text-left"
+              onClick={() => toggleCollapse(detail.id)}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                  {idx + 1}
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-foreground">
+                    {cardLabel}
+                  </span>
+                  {batchLabel && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {batchLabel}
+                    </span>
+                  )}
+                </div>
+                {detail.testType && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] px-1.5 py-0 border-primary/40 text-primary"
+                  >
+                    {detail.testType}
+                  </Badge>
+                )}
+                {selectedCount > 0 && (
+                  <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500/10 text-emerald-700 border border-emerald-200">
+                    {selectedCount} param{selectedCount > 1 ? "s" : ""}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {sampleDetails.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeCard(idx);
+                    }}
+                    data-ocid={`sample_details.delete_button.${idx + 1}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                <span className="text-muted-foreground pointer-events-none">
+                  {isCollapsed ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronUp className="h-4 w-4" />
+                  )}
+                </span>
+              </div>
+            </button>
+
+            {/* Card Body */}
+            {!isCollapsed && (
+              <CardContent className="p-5 space-y-5">
+                {/* Primary Fields — always visible */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                    Basic Information
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">
+                        Sample Name <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        value={detail.sampleName}
+                        onChange={(e) =>
+                          updateDetail(idx, "sampleName", e.target.value)
+                        }
+                        placeholder="e.g. Amoxicillin 500mg"
+                        className="h-9 text-sm"
+                        data-ocid={`sample_details.sample_name.input.${idx + 1}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Batch No</Label>
+                      <Input
+                        value={detail.batchNumber}
+                        onChange={(e) =>
+                          updateDetail(idx, "batchNumber", e.target.value)
+                        }
+                        placeholder="e.g. BT-2024-001"
+                        className="h-9 text-sm"
+                        data-ocid={`sample_details.batch_no.input.${idx + 1}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">AR No</Label>
+                      <Input
+                        value={detail.arNo}
+                        onChange={(e) =>
+                          updateDetail(idx, "arNo", e.target.value)
+                        }
+                        placeholder="e.g. AR-2024-0456"
+                        className="h-9 text-sm"
+                        data-ocid={`sample_details.ar_no.input.${idx + 1}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Batch Size</Label>
+                      <Input
+                        value={detail.batchSize}
+                        onChange={(e) =>
+                          updateDetail(idx, "batchSize", e.target.value)
+                        }
+                        placeholder="e.g. 10000 units"
+                        className="h-9 text-sm"
+                        data-ocid={`sample_details.batch_size.input.${idx + 1}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">
+                        Sample Quantity
+                      </Label>
+                      <Input
+                        value={detail.sampleQuantity}
+                        onChange={(e) =>
+                          updateDetail(idx, "sampleQuantity", e.target.value)
+                        }
+                        placeholder="e.g. 50 tablets"
+                        className="h-9 text-sm"
+                        data-ocid={`sample_details.qty.input.${idx + 1}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">
+                        Original Mfg Name
+                      </Label>
+                      <Input
+                        value={detail.originalMfgName}
+                        onChange={(e) =>
+                          updateDetail(idx, "originalMfgName", e.target.value)
+                        }
+                        placeholder="Manufacturer name"
+                        className="h-9 text-sm"
+                        data-ocid={`sample_details.mfg_name.input.${idx + 1}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-dashed border-border/50" />
+
+                {/* Extended Fields */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                    Dates & Specification
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Mfg Date</Label>
+                      <Input
+                        type="date"
+                        value={detail.dateOfMfg}
+                        onChange={(e) =>
+                          updateDetail(idx, "dateOfMfg", e.target.value)
+                        }
+                        className="h-9 text-sm"
+                        data-ocid={`sample_details.mfg_date.input.${idx + 1}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Expiry Date</Label>
+                      <Input
+                        type="date"
+                        value={detail.expiryDate}
+                        onChange={(e) =>
+                          updateDetail(idx, "expiryDate", e.target.value)
+                        }
+                        className="h-9 text-sm"
+                        data-ocid={`sample_details.expiry_date.input.${idx + 1}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Retest Date</Label>
+                      <Input
+                        type="date"
+                        value={detail.retestDate}
+                        onChange={(e) =>
+                          updateDetail(idx, "retestDate", e.target.value)
+                        }
+                        className="h-9 text-sm"
+                        data-ocid={`sample_details.retest_date.input.${idx + 1}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">
+                        Specification
+                      </Label>
+                      <Input
+                        value={detail.specification}
+                        onChange={(e) =>
+                          updateDetail(idx, "specification", e.target.value)
+                        }
+                        placeholder="e.g. BP 2023"
+                        className="h-9 text-sm"
+                        data-ocid={`sample_details.spec.input.${idx + 1}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">
+                        Nature of Packing
+                      </Label>
+                      <Select
+                        value={detail.natureOfPacking}
+                        onValueChange={(v) =>
+                          updateDetail(idx, "natureOfPacking", v)
+                        }
+                      >
+                        <SelectTrigger
+                          className="h-9 text-sm"
+                          data-ocid={`sample_details.packing.select.${idx + 1}`}
+                        >
+                          <SelectValue placeholder="Select packing type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PACKING_TYPES.map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {p}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-dashed border-border/50" />
+
+                {/* Test Type & Parameters */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                    Test Configuration
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Test Type</Label>
+                      <Select
+                        value={detail.testType}
+                        onValueChange={(v) => {
+                          updateDetail(idx, "testType", v);
+                          updateDetail(idx, "testParameters", []);
+                        }}
+                      >
+                        <SelectTrigger
+                          className="h-9 text-sm"
+                          data-ocid={`sample_details.test_type.select.${idx + 1}`}
+                        >
+                          <SelectValue placeholder="Select test type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TEST_TYPES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium">
+                        Test Parameters
+                        {selectedCount > 0 && (
+                          <span className="ml-1.5 text-primary font-semibold">
+                            ({selectedCount} selected)
+                          </span>
+                        )}
+                      </Label>
+                      {!detail.testType ? (
+                        <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground italic">
+                          Select a test type to see available parameters
+                        </div>
+                      ) : availableParams.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50/50 px-4 py-3 text-xs text-amber-700 italic">
+                          No parameters configured for this test type yet. Add
+                          them in Test Masters.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-1.5 p-3 rounded-lg border border-border/50 bg-muted/10 max-h-40 overflow-y-auto">
+                          {availableParams.map((p) => {
+                            const isChecked = detail.testParameters.includes(
+                              p.name,
+                            );
+                            return (
+                              <label
+                                key={p.id}
+                                htmlFor={`detail-param-${idx}-${p.id}`}
+                                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-xs cursor-pointer transition-all ${
+                                  isChecked
+                                    ? "border-primary/50 bg-primary/8 text-primary font-medium"
+                                    : "border-border/50 hover:border-primary/30 hover:bg-muted/30"
+                                }`}
+                                data-ocid={`sample_details.param.checkbox.${idx + 1}`}
+                              >
+                                <Checkbox
+                                  id={`detail-param-${idx}-${p.id}`}
+                                  checked={isChecked}
+                                  onCheckedChange={() =>
+                                    toggleDetailParam(idx, p.name)
+                                  }
+                                  className="h-3 w-3 shrink-0"
+                                />
+                                <span className="truncate">{p.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
+
+      {/* Add another sample CTA at bottom */}
+      <button
+        type="button"
+        onClick={addCard}
+        className="w-full border-2 border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 rounded-xl py-4 text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-2 transition-all"
+        data-ocid="sample_details.add_more.button"
+      >
+        <Plus className="h-4 w-4" />
+        Add Another Sample
+      </button>
+    </div>
+  );
+}
+
 export function SampleRegistration({
   sampleId: propSampleId,
 }: SampleRegistrationProps) {
@@ -87,12 +512,17 @@ export function SampleRegistration({
   const registrationSamples = SAMPLE_INTAKES.filter(
     (s) => s.status === "Registration",
   );
-  const analysts = DUMMY_USERS.filter(
-    (u) => u.role === "analyst" || u.role === "sectionInCharge",
-  );
-
   const [tab, setTab] = useState("client");
   const [submitting, setSubmitting] = useState(false);
+
+  // Client autofill state
+  const [clientQuery, setClientQuery] = useState(
+    existingRFA?.clientName || sample?.customerName || "",
+  );
+  const [clientSuggestions, setClientSuggestions] = useState<Client[]>([]);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [autofilledClient, setAutofilledClient] = useState<Client | null>(null);
+  const clientInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     registrationNumber:
@@ -142,6 +572,43 @@ export function SampleRegistration({
 
   const setField = (key: string, value: unknown) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleClientQuery = (q: string) => {
+    setClientQuery(q);
+    setField("clientName", q);
+    setAutofilledClient(null);
+    if (q.trim().length >= 1) {
+      const matches = CLIENTS.filter((c) =>
+        c.name.toLowerCase().includes(q.toLowerCase()),
+      );
+      setClientSuggestions(matches);
+      setShowClientDropdown(matches.length > 0);
+    } else {
+      setClientSuggestions([]);
+      setShowClientDropdown(false);
+    }
+  };
+
+  const applyClientAutofill = (client: Client) => {
+    setClientQuery(client.name);
+    setAutofilledClient(client);
+    setShowClientDropdown(false);
+    setForm((prev) => ({
+      ...prev,
+      clientName: client.name,
+      address: client.address + (client.city ? `, ${client.city}` : ""),
+      pinCode: client.pinCode,
+      person: client.contactPerson,
+      phone: client.phone,
+      emailId: client.email,
+      clientOrganizationName: client.name,
+      billingContactPerson: client.contactPerson,
+      contactTelNo: client.phone,
+    }));
+    toast.success("Client details auto-filled from Master", {
+      description: client.name,
+    });
+  };
 
   const updateDetail = (
     idx: number,
@@ -293,54 +760,198 @@ export function SampleRegistration({
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-3 w-full">
           <TabsTrigger value="client">Client Info</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="receipt">Sample Receipt</TabsTrigger>
-          <TabsTrigger value="testing">Testing Setup</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Client Info */}
         <TabsContent value="client">
           <Card className="lims-card">
-            <CardContent className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                {
-                  key: "registrationNumber",
-                  label: "Registration Number",
-                  required: true,
-                },
-                { key: "clientName", label: "Client Name", required: true },
-                { key: "address", label: "Address", required: true },
-                { key: "pinCode", label: "PIN Code" },
-                { key: "referenceQuotation", label: "Reference Quotation" },
-                { key: "customerRefNumber", label: "Customer Ref Number" },
-                {
-                  key: "entryDate",
-                  label: "Entry Date",
-                  type: "date",
-                  required: true,
-                },
-                { key: "person", label: "Contact Person", required: true },
-                { key: "designation", label: "Designation" },
-                { key: "phone", label: "Phone" },
-                { key: "emailId", label: "Email ID", type: "email" },
-              ].map((f) => (
-                <div key={f.key} className="space-y-1.5">
+            <CardContent className="p-5 space-y-4">
+              {/* Auto-fill notice */}
+              {autofilledClient && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs">
+                  <UserCheck className="h-4 w-4 shrink-0" />
+                  <span>
+                    Client details auto-filled from{" "}
+                    <strong>Client Master</strong> — {autofilledClient.name}
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Registration Number */}
+                <div className="space-y-1.5">
                   <Label className="text-xs font-medium">
-                    {f.label}
-                    {f.required && (
-                      <span className="text-destructive ml-1">*</span>
-                    )}
+                    Registration Number{" "}
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
-                    type={f.type || "text"}
-                    value={(form as Record<string, unknown>)[f.key] as string}
-                    onChange={(e) => setField(f.key, e.target.value)}
-                    placeholder={f.label}
+                    value={form.registrationNumber}
+                    onChange={(e) =>
+                      setField("registrationNumber", e.target.value)
+                    }
+                    placeholder="Registration Number"
+                    data-ocid="registration.reg_number.input"
                   />
                 </div>
-              ))}
+
+                {/* Client Name with autofill dropdown */}
+                <div className="space-y-1.5 relative">
+                  <Label className="text-xs font-medium">
+                    Client Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    ref={clientInputRef}
+                    value={clientQuery}
+                    onChange={(e) => handleClientQuery(e.target.value)}
+                    onFocus={() => {
+                      if (clientSuggestions.length > 0)
+                        setShowClientDropdown(true);
+                    }}
+                    onBlur={() =>
+                      setTimeout(() => setShowClientDropdown(false), 150)
+                    }
+                    placeholder="Type client name to search..."
+                    autoComplete="off"
+                    data-ocid="registration.client_name.input"
+                  />
+                  {showClientDropdown && (
+                    <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-border rounded-lg shadow-lg overflow-hidden">
+                      {clientSuggestions.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-primary/5 text-left border-b border-border/50 last:border-0"
+                          onMouseDown={() => applyClientAutofill(c)}
+                        >
+                          <UserCheck className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {c.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {c.contactPerson} · {c.city} {c.pinCode}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Address */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">
+                    Address <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    value={form.address}
+                    onChange={(e) => setField("address", e.target.value)}
+                    placeholder="Address"
+                    data-ocid="registration.address.input"
+                  />
+                </div>
+
+                {/* PIN Code */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">PIN Code</Label>
+                  <Input
+                    value={form.pinCode}
+                    onChange={(e) => setField("pinCode", e.target.value)}
+                    placeholder="PIN Code"
+                    data-ocid="registration.pin_code.input"
+                  />
+                </div>
+
+                {/* Reference Quotation */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">
+                    Reference Quotation
+                  </Label>
+                  <Input
+                    value={form.referenceQuotation}
+                    onChange={(e) =>
+                      setField("referenceQuotation", e.target.value)
+                    }
+                    placeholder="Reference Quotation"
+                  />
+                </div>
+
+                {/* Customer Ref Number */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">
+                    Customer Ref Number
+                  </Label>
+                  <Input
+                    value={form.customerRefNumber}
+                    onChange={(e) =>
+                      setField("customerRefNumber", e.target.value)
+                    }
+                    placeholder="Customer Ref Number"
+                  />
+                </div>
+
+                {/* Entry Date */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">
+                    Entry Date <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={form.entryDate}
+                    onChange={(e) => setField("entryDate", e.target.value)}
+                    data-ocid="registration.entry_date.input"
+                  />
+                </div>
+
+                {/* Contact Person */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">
+                    Contact Person <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    value={form.person}
+                    onChange={(e) => setField("person", e.target.value)}
+                    placeholder="Contact Person"
+                    data-ocid="registration.contact_person.input"
+                  />
+                </div>
+
+                {/* Designation */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Designation</Label>
+                  <Input
+                    value={form.designation}
+                    onChange={(e) => setField("designation", e.target.value)}
+                    placeholder="Designation"
+                  />
+                </div>
+
+                {/* Phone */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Phone</Label>
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => setField("phone", e.target.value)}
+                    placeholder="Phone"
+                    data-ocid="registration.phone.input"
+                  />
+                </div>
+
+                {/* Email */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Email ID</Label>
+                  <Input
+                    type="email"
+                    value={form.emailId}
+                    onChange={(e) => setField("emailId", e.target.value)}
+                    placeholder="Email ID"
+                    data-ocid="registration.email.input"
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -476,334 +1087,15 @@ export function SampleRegistration({
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* Tab 4: Testing Setup */}
-        <TabsContent value="testing">
-          <Card className="lims-card">
-            <CardContent className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Testing Purpose</Label>
-                <Select
-                  value={form.testingPurpose}
-                  onValueChange={(v) => setField("testingPurpose", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select purpose" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TESTING_PURPOSES.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Test Method</Label>
-                <Select
-                  value={form.testMethod}
-                  onValueChange={(v) => setField("testMethod", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TEST_METHODS.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Assignee Type</Label>
-                <Select
-                  value={form.assigneeType}
-                  onValueChange={(v) => setField("assigneeType", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ASSIGNEE_TYPES.map((a) => (
-                      <SelectItem key={a} value={a}>
-                        {a}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {[
-                { key: "samplingPoint", label: "Sampling Point" },
-                { key: "sampledBy", label: "Sampled By" },
-                { key: "sampleDescription", label: "Sample Description" },
-                { key: "rawFinishedOthers", label: "Raw/Finished/Others" },
-              ].map((f) => (
-                <div key={f.key} className="space-y-1.5">
-                  <Label className="text-xs font-medium">{f.label}</Label>
-                  <Input
-                    value={(form as Record<string, unknown>)[f.key] as string}
-                    onChange={(e) => setField(f.key, e.target.value)}
-                    placeholder={f.label}
-                  />
-                </div>
-              ))}
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs font-medium">Test Names</Label>
-                <div className="flex flex-wrap gap-2">
-                  {TEST_SAMPLES.map((t) => (
-                    <label
-                      key={t.id}
-                      htmlFor={`rfa-test-${t.id}`}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs cursor-pointer transition-colors ${form.testNames.includes(t.testName) ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50"}`}
-                    >
-                      <Checkbox
-                        id={`rfa-test-${t.id}`}
-                        checked={form.testNames.includes(t.testName)}
-                        onCheckedChange={() =>
-                          setField(
-                            "testNames",
-                            form.testNames.includes(t.testName)
-                              ? form.testNames.filter((n) => n !== t.testName)
-                              : [...form.testNames, t.testName],
-                          )
-                        }
-                        className="h-3 w-3"
-                      />
-                      {t.testName}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs font-medium">Section Users</Label>
-                <div className="flex flex-wrap gap-2">
-                  {analysts.map((u) => (
-                    <label
-                      key={u.id}
-                      htmlFor={`rfa-user-${u.id}`}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs cursor-pointer transition-colors ${form.sectionUsers.includes(u.id) ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50"}`}
-                    >
-                      <Checkbox
-                        id={`rfa-user-${u.id}`}
-                        checked={form.sectionUsers.includes(u.id)}
-                        onCheckedChange={() =>
-                          setField(
-                            "sectionUsers",
-                            form.sectionUsers.includes(u.id)
-                              ? form.sectionUsers.filter((id) => id !== u.id)
-                              : [...form.sectionUsers, u.id],
-                          )
-                        }
-                        className="h-3 w-3"
-                      />
-                      {u.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
-      {/* Sample Details Table */}
-      <Card className="lims-card mt-6">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">
-              Sample Details
-            </CardTitle>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setSampleDetails((prev) => [...prev, emptyDetail()])
-              }
-              className="gap-1 text-xs"
-            >
-              <Plus className="h-3 w-3" /> Add Sample Row
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="table-scroll">
-            <table className="w-full text-xs min-w-[1200px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  {[
-                    "Sample Name",
-                    "Batch No",
-                    "AR No",
-                    "Batch Size",
-                    "Qty",
-                    "Mfg Name",
-                    "Mfg Date",
-                    "Specification",
-                    "Test Type",
-                    "Test Params",
-                    "Expiry",
-                    "Packing",
-                    "Retest Date",
-                    "",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="text-left py-2 px-2 font-semibold text-muted-foreground whitespace-nowrap"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sampleDetails.map((detail, idx) => (
-                  <tr key={detail.id} className="border-b border-border/50">
-                    {(
-                      [
-                        "sampleName",
-                        "batchNumber",
-                        "arNo",
-                        "batchSize",
-                        "sampleQuantity",
-                        "originalMfgName",
-                      ] as (keyof SampleDetail)[]
-                    ).map((key) => (
-                      <td key={key} className="py-1.5 px-1">
-                        <Input
-                          value={detail[key] as string}
-                          onChange={(e) =>
-                            updateDetail(idx, key, e.target.value)
-                          }
-                          className="h-7 text-xs min-w-[80px]"
-                          placeholder={key}
-                        />
-                      </td>
-                    ))}
-                    <td className="py-1.5 px-1">
-                      <Input
-                        type="date"
-                        value={detail.dateOfMfg}
-                        onChange={(e) =>
-                          updateDetail(idx, "dateOfMfg", e.target.value)
-                        }
-                        className="h-7 text-xs min-w-[110px]"
-                      />
-                    </td>
-                    <td className="py-1.5 px-1">
-                      <Input
-                        value={detail.specification}
-                        onChange={(e) =>
-                          updateDetail(idx, "specification", e.target.value)
-                        }
-                        className="h-7 text-xs min-w-[80px]"
-                        placeholder="Spec"
-                      />
-                    </td>
-                    <td className="py-1.5 px-1">
-                      <Select
-                        value={detail.testType}
-                        onValueChange={(v) => updateDetail(idx, "testType", v)}
-                      >
-                        <SelectTrigger className="h-7 text-xs min-w-[100px]">
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TEST_TYPES.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="py-1.5 px-1">
-                      <div className="flex flex-wrap gap-1 min-w-[120px]">
-                        {TEST_SAMPLES.flatMap((ts) => ts.parameters)
-                          .slice(0, 6)
-                          .map((p) => (
-                            <label
-                              key={p.id}
-                              htmlFor={`detail-param-${idx}-${p.id}`}
-                              className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] cursor-pointer ${detail.testParameters.includes(p.name) ? "border-primary bg-primary/10 text-primary" : "border-border"}`}
-                            >
-                              <Checkbox
-                                id={`detail-param-${idx}-${p.id}`}
-                                checked={detail.testParameters.includes(p.name)}
-                                onCheckedChange={() =>
-                                  toggleDetailParam(idx, p.name)
-                                }
-                                className="h-2.5 w-2.5"
-                              />
-                              {p.name.split(" ")[0]}
-                            </label>
-                          ))}
-                      </div>
-                    </td>
-                    <td className="py-1.5 px-1">
-                      <Input
-                        type="date"
-                        value={detail.expiryDate}
-                        onChange={(e) =>
-                          updateDetail(idx, "expiryDate", e.target.value)
-                        }
-                        className="h-7 text-xs min-w-[110px]"
-                      />
-                    </td>
-                    <td className="py-1.5 px-1">
-                      <Select
-                        value={detail.natureOfPacking}
-                        onValueChange={(v) =>
-                          updateDetail(idx, "natureOfPacking", v)
-                        }
-                      >
-                        <SelectTrigger className="h-7 text-xs min-w-[110px]">
-                          <SelectValue placeholder="Packing" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PACKING_TYPES.map((p) => (
-                            <SelectItem key={p} value={p}>
-                              {p}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="py-1.5 px-1">
-                      <Input
-                        type="date"
-                        value={detail.retestDate}
-                        onChange={(e) =>
-                          updateDetail(idx, "retestDate", e.target.value)
-                        }
-                        className="h-7 text-xs min-w-[110px]"
-                      />
-                    </td>
-                    <td className="py-1.5 px-1">
-                      {sampleDetails.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() =>
-                            setSampleDetails((prev) =>
-                              prev.filter((_, i) => i !== idx),
-                            )
-                          }
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Sample Details — Card Layout */}
+      <SampleDetailsCards
+        sampleDetails={sampleDetails}
+        setSampleDetails={setSampleDetails}
+        updateDetail={updateDetail}
+        toggleDetailParam={toggleDetailParam}
+      />
 
       <div className="flex justify-between mt-6">
         <div className="flex gap-2">
@@ -817,7 +1109,6 @@ export function SampleRegistration({
                       client: "client",
                       billing: "client",
                       receipt: "billing",
-                      testing: "receipt",
                     })[prev] || "client",
                 )
               }
@@ -825,7 +1116,7 @@ export function SampleRegistration({
               Previous
             </Button>
           )}
-          {tab !== "testing" && (
+          {tab !== "receipt" && (
             <Button
               variant="outline"
               onClick={() =>
@@ -834,9 +1125,8 @@ export function SampleRegistration({
                     ({
                       client: "billing",
                       billing: "receipt",
-                      receipt: "testing",
-                      testing: "testing",
-                    })[prev] || "testing",
+                      receipt: "receipt",
+                    })[prev] || "receipt",
                 )
               }
             >
