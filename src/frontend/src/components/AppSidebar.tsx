@@ -182,7 +182,7 @@ export function AppSidebar() {
     <aside
       className="sidebar-wrapper fixed left-0 top-0 h-screen w-56 flex flex-col z-40"
       style={{
-        background: "rgb(2, 132, 199)",
+        background: "rgb(11, 54, 77)",
         borderRight: "1px solid rgba(255,255,255,0.15)",
         boxShadow: "1px 0 4px rgba(0,0,0,0.04)",
       }}

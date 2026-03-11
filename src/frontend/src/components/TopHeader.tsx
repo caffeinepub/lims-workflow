@@ -402,7 +402,7 @@ export function TopHeader() {
       className="sticky top-0 z-30 flex items-center justify-between px-4 py-0 h-14"
       data-ocid="top_header.section"
       style={{
-        background: "rgb(2, 132, 199)",
+        background: "rgb(11, 54, 77)",
         borderBottom: "1px solid rgba(0,0,0,0.12)",
         boxShadow: "0px 2px 4px rgba(0,0,0,0.15)",
       }}
