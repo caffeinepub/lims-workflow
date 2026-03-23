@@ -30,6 +30,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
+import { useActor } from "../hooks/useActor";
 import {
   AUDIT_LOG,
   DUMMY_USERS,
@@ -109,6 +110,7 @@ export function TestSpecification({
 }: TestSpecificationProps) {
   const navigate = useNavigate();
   const { activeUser } = useRole();
+  const { actor } = useActor();
 
   const [selectedSampleId, setSelectedSampleId] = useState(propSampleId || "");
   const sample = selectedSampleId ? getSampleById(selectedSampleId) : null;
@@ -164,7 +166,6 @@ export function TestSpecification({
   const handleSave = async () => {
     if (!selectedSampleId) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 800));
 
     const updatedRows = rows.map((r) => ({
       ...r,
@@ -184,6 +185,27 @@ export function TestSpecification({
     );
     if (idx !== -1)
       SAMPLE_INTAKES[idx] = { ...SAMPLE_INTAKES[idx], status: "Analysis" };
+
+    // Backend: save test specs and advance to Analysis stage
+    if (actor && selectedSampleId) {
+      try {
+        const backendSpecs = updatedRows.map((r) => ({
+          parameter: r.parameter,
+          acceptanceCriteria: r.acceptanceCriteria,
+          method: r.methodSop,
+          referenceStandard: r.referenceStandard,
+          assignedAnalyst: leadAnalyst,
+          targetSLA: BigInt(3),
+        }));
+        await (actor as any).saveTestSpec(selectedSampleId, backendSpecs);
+        if (leadAnalyst) {
+          await (actor as any).assignAnalyst(selectedSampleId, leadAnalyst);
+        }
+      } catch (err) {
+        console.warn("Backend saveTestSpec failed:", err);
+      }
+    }
+
     AUDIT_LOG.push({
       id: `al-${Date.now()}`,
       timestamp: new Date().toISOString(),

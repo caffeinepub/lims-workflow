@@ -8,11 +8,111 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const Client = IDL.Record({
+  'city' : IDL.Text,
+  'name' : IDL.Text,
+  'contactPerson' : IDL.Text,
+  'email' : IDL.Text,
+  'address' : IDL.Text,
+  'pinCode' : IDL.Text,
+  'phone' : IDL.Text,
+});
+export const TestParameter = IDL.Record({
+  'minValue' : IDL.Nat,
+  'name' : IDL.Text,
+  'unit' : IDL.Text,
+  'acceptanceCriteria' : IDL.Text,
+  'maxValue' : IDL.Nat,
+});
+export const TestMaster = IDL.Record({
+  'status' : IDL.Variant({ 'active' : IDL.Null, 'inactive' : IDL.Null }),
+  'testName' : IDL.Text,
+  'testType' : IDL.Text,
+  'parameters' : IDL.Vec(TestParameter),
+  'daysRequired' : IDL.Nat,
+});
+export const QaReview = IDL.Record({
+  'decision' : IDL.Bool,
+  'comments' : IDL.Text,
+  'qaHeadName' : IDL.Text,
+});
+export const SampleStatus = IDL.Variant({
+  'review' : IDL.Null,
+  'pending' : IDL.Null,
+  'hold' : IDL.Text,
+  'completed' : IDL.Null,
+  'eligible' : IDL.Null,
+  'analysis' : IDL.Null,
+});
+export const TestSpecification = IDL.Record({
+  'method' : IDL.Text,
+  'parameter' : IDL.Text,
+  'targetSLA' : IDL.Nat,
+  'acceptanceCriteria' : IDL.Text,
+  'referenceStandard' : IDL.Text,
+  'assignedAnalyst' : IDL.Text,
+});
+export const SicReview = IDL.Record({
+  'decision' : IDL.Bool,
+  'flaggedRows' : IDL.Vec(IDL.Nat),
+  'reviewerName' : IDL.Text,
+  'comments' : IDL.Text,
+});
+export const AnalysisResult = IDL.Record({
+  'remark' : IDL.Text,
+  'parameter' : IDL.Text,
+  'unit' : IDL.Text,
+  'verdict' : IDL.Variant({
+    'oos' : IDL.Null,
+    'fail' : IDL.Null,
+    'pass' : IDL.Null,
+  }),
+  'observedValue' : IDL.Text,
+});
+export const Sample = IDL.Record({
+  'rfa' : IDL.Record({
+    'sampleDetails' : IDL.Nat,
+    'registration' : IDL.Nat,
+    'billing' : IDL.Nat,
+  }),
+  'clientName' : IDL.Text,
+  'qaReview' : IDL.Opt(QaReview),
+  'sampleStatus' : SampleStatus,
+  'testSpecs' : IDL.Vec(TestSpecification),
+  'testName' : IDL.Text,
+  'sampleName' : IDL.Text,
+  'sicReview' : IDL.Opt(SicReview),
+  'dateReceived' : IDL.Int,
+  'sampleId' : IDL.Text,
+  'registrationId' : IDL.Nat,
+  'analysisResults' : IDL.Vec(AnalysisResult),
+});
+export const SampleID = IDL.Text;
 export const UserRole = IDL.Variant({
   'qa' : IDL.Null,
   'admin' : IDL.Null,
   'sectionInCharge' : IDL.Null,
   'analyst' : IDL.Null,
+});
+export const ClientID = IDL.Nat;
+export const COAValue = IDL.Record({
+  'qaEmployee' : IDL.Text,
+  'verificationEmployee' : IDL.Text,
+  'registrationNumber' : IDL.Nat,
+  'issuedDateTime' : IDL.Nat,
+  'sicEmployee' : IDL.Text,
+  'sampleIntakeEmployee' : IDL.Text,
+  'coaNumber' : IDL.Nat,
+});
+export const VerifyEligibilityDecision = IDL.Record({
+  'decision' : IDL.Bool,
+  'userId' : IDL.Principal,
+});
+export const VerifyEligibilityDecisions = IDL.Vec(VerifyEligibilityDecision);
+export const EligibilityVoteValuation = IDL.Record({
+  'isEligible' : IDL.Bool,
+  'votes' : VerifyEligibilityDecisions,
+  'comments' : IDL.Text,
 });
 export const TaskType = IDL.Variant({
   'coa' : IDL.Null,
@@ -34,36 +134,181 @@ export const Notification = IDL.Record({
   'timestamp' : IDL.Int,
   'notificationId' : IDL.Text,
 });
+export const TestSpecID = IDL.Nat;
 export const User = IDL.Record({
   'principal' : IDL.Principal,
   'name' : IDL.Text,
   'role' : UserRole,
   'isActive' : IDL.Bool,
 });
+export const TestMasterID = IDL.Nat;
 
 export const idlService = IDL.Service({
+  'addClient' : IDL.Func([Client], [IDL.Nat], []),
+  'addTestMaster' : IDL.Func([TestMaster], [IDL.Nat], []),
   'completeTask' : IDL.Func([IDL.Text], [], []),
+  'createSample' : IDL.Func([Sample], [SampleID], []),
   'createUser' : IDL.Func([IDL.Text, UserRole], [], []),
-  'getAllTasks' : IDL.Func([], [IDL.Vec(Task)], ['query']),
-  'getNotifications' : IDL.Func([IDL.Text], [IDL.Vec(Notification)], ['query']),
+  'deleteClient' : IDL.Func([ClientID], [], []),
+  'findCoa' : IDL.Func([SampleID], [COAValue], []),
+  'findEligibilityVote' : IDL.Func([SampleID], [EligibilityVoteValuation], []),
+  'findTasks' : IDL.Func([IDL.Text], [Task], []),
+  'getAllTasks' : IDL.Func([], [IDL.Vec(Task)], []),
+  'getClientSamples' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Vec(IDL.Text)],
+      ['query'],
+    ),
+  'getCompletedTasks' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Text, Task))],
+      ['query'],
+    ),
+  'getEligibilityVote' : IDL.Func(
+      [SampleID],
+      [
+        IDL.Record({
+          'isEligible' : IDL.Bool,
+          'votes' : VerifyEligibilityDecisions,
+          'comments' : IDL.Text,
+        }),
+      ],
+      ['query'],
+    ),
+  'getNotifications' : IDL.Func([IDL.Text], [IDL.Vec(Notification)], []),
+  'getSample' : IDL.Func([SampleID], [Sample], ['query']),
   'getSortedTasksByDeadline' : IDL.Func(
       [],
       [IDL.Vec(IDL.Tuple(IDL.Text, Task))],
       ['query'],
     ),
+  'getTask' : IDL.Func([IDL.Text], [Task], ['query']),
+  'getTasks' : IDL.Func([], [IDL.Vec(IDL.Tuple(IDL.Text, Task))], ['query']),
+  'getTestSpecIds' : IDL.Func([], [IDL.Vec(TestSpecID)], ['query']),
   'getUser' : IDL.Func([], [IDL.Opt(User)], ['query']),
+  'loadClientById' : IDL.Func([ClientID], [Client], []),
+  'loadTestMaster' : IDL.Func([TestMasterID], [TestMaster], []),
   'markNotificationAsRead' : IDL.Func([IDL.Text, IDL.Text], [], []),
+  'removeTask' : IDL.Func([IDL.Text], [], []),
   'sendNotification' : IDL.Func([IDL.Text, IDL.Text], [], []),
+  'submitEligibilityVote' : IDL.Func(
+      [SampleID, IDL.Bool, IDL.Text, VerifyEligibilityDecisions],
+      [EligibilityVoteValuation],
+      [],
+    ),
+  'updateClient' : IDL.Func([ClientID, Client], [], []),
+  'updateSample' : IDL.Func([SampleID, IDL.Text], [], []),
+  'workflowCheckDataType' : IDL.Func([IDL.Text, IDL.Int], [User], ['query']),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const Client = IDL.Record({
+    'city' : IDL.Text,
+    'name' : IDL.Text,
+    'contactPerson' : IDL.Text,
+    'email' : IDL.Text,
+    'address' : IDL.Text,
+    'pinCode' : IDL.Text,
+    'phone' : IDL.Text,
+  });
+  const TestParameter = IDL.Record({
+    'minValue' : IDL.Nat,
+    'name' : IDL.Text,
+    'unit' : IDL.Text,
+    'acceptanceCriteria' : IDL.Text,
+    'maxValue' : IDL.Nat,
+  });
+  const TestMaster = IDL.Record({
+    'status' : IDL.Variant({ 'active' : IDL.Null, 'inactive' : IDL.Null }),
+    'testName' : IDL.Text,
+    'testType' : IDL.Text,
+    'parameters' : IDL.Vec(TestParameter),
+    'daysRequired' : IDL.Nat,
+  });
+  const QaReview = IDL.Record({
+    'decision' : IDL.Bool,
+    'comments' : IDL.Text,
+    'qaHeadName' : IDL.Text,
+  });
+  const SampleStatus = IDL.Variant({
+    'review' : IDL.Null,
+    'pending' : IDL.Null,
+    'hold' : IDL.Text,
+    'completed' : IDL.Null,
+    'eligible' : IDL.Null,
+    'analysis' : IDL.Null,
+  });
+  const TestSpecification = IDL.Record({
+    'method' : IDL.Text,
+    'parameter' : IDL.Text,
+    'targetSLA' : IDL.Nat,
+    'acceptanceCriteria' : IDL.Text,
+    'referenceStandard' : IDL.Text,
+    'assignedAnalyst' : IDL.Text,
+  });
+  const SicReview = IDL.Record({
+    'decision' : IDL.Bool,
+    'flaggedRows' : IDL.Vec(IDL.Nat),
+    'reviewerName' : IDL.Text,
+    'comments' : IDL.Text,
+  });
+  const AnalysisResult = IDL.Record({
+    'remark' : IDL.Text,
+    'parameter' : IDL.Text,
+    'unit' : IDL.Text,
+    'verdict' : IDL.Variant({
+      'oos' : IDL.Null,
+      'fail' : IDL.Null,
+      'pass' : IDL.Null,
+    }),
+    'observedValue' : IDL.Text,
+  });
+  const Sample = IDL.Record({
+    'rfa' : IDL.Record({
+      'sampleDetails' : IDL.Nat,
+      'registration' : IDL.Nat,
+      'billing' : IDL.Nat,
+    }),
+    'clientName' : IDL.Text,
+    'qaReview' : IDL.Opt(QaReview),
+    'sampleStatus' : SampleStatus,
+    'testSpecs' : IDL.Vec(TestSpecification),
+    'testName' : IDL.Text,
+    'sampleName' : IDL.Text,
+    'sicReview' : IDL.Opt(SicReview),
+    'dateReceived' : IDL.Int,
+    'sampleId' : IDL.Text,
+    'registrationId' : IDL.Nat,
+    'analysisResults' : IDL.Vec(AnalysisResult),
+  });
+  const SampleID = IDL.Text;
   const UserRole = IDL.Variant({
     'qa' : IDL.Null,
     'admin' : IDL.Null,
     'sectionInCharge' : IDL.Null,
     'analyst' : IDL.Null,
+  });
+  const ClientID = IDL.Nat;
+  const COAValue = IDL.Record({
+    'qaEmployee' : IDL.Text,
+    'verificationEmployee' : IDL.Text,
+    'registrationNumber' : IDL.Nat,
+    'issuedDateTime' : IDL.Nat,
+    'sicEmployee' : IDL.Text,
+    'sampleIntakeEmployee' : IDL.Text,
+    'coaNumber' : IDL.Nat,
+  });
+  const VerifyEligibilityDecision = IDL.Record({
+    'decision' : IDL.Bool,
+    'userId' : IDL.Principal,
+  });
+  const VerifyEligibilityDecisions = IDL.Vec(VerifyEligibilityDecision);
+  const EligibilityVoteValuation = IDL.Record({
+    'isEligible' : IDL.Bool,
+    'votes' : VerifyEligibilityDecisions,
+    'comments' : IDL.Text,
   });
   const TaskType = IDL.Variant({
     'coa' : IDL.Null,
@@ -85,30 +330,75 @@ export const idlFactory = ({ IDL }) => {
     'timestamp' : IDL.Int,
     'notificationId' : IDL.Text,
   });
+  const TestSpecID = IDL.Nat;
   const User = IDL.Record({
     'principal' : IDL.Principal,
     'name' : IDL.Text,
     'role' : UserRole,
     'isActive' : IDL.Bool,
   });
+  const TestMasterID = IDL.Nat;
   
   return IDL.Service({
+    'addClient' : IDL.Func([Client], [IDL.Nat], []),
+    'addTestMaster' : IDL.Func([TestMaster], [IDL.Nat], []),
     'completeTask' : IDL.Func([IDL.Text], [], []),
+    'createSample' : IDL.Func([Sample], [SampleID], []),
     'createUser' : IDL.Func([IDL.Text, UserRole], [], []),
-    'getAllTasks' : IDL.Func([], [IDL.Vec(Task)], ['query']),
-    'getNotifications' : IDL.Func(
-        [IDL.Text],
-        [IDL.Vec(Notification)],
+    'deleteClient' : IDL.Func([ClientID], [], []),
+    'findCoa' : IDL.Func([SampleID], [COAValue], []),
+    'findEligibilityVote' : IDL.Func(
+        [SampleID],
+        [EligibilityVoteValuation],
+        [],
+      ),
+    'findTasks' : IDL.Func([IDL.Text], [Task], []),
+    'getAllTasks' : IDL.Func([], [IDL.Vec(Task)], []),
+    'getClientSamples' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Vec(IDL.Text)],
         ['query'],
       ),
+    'getCompletedTasks' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Text, Task))],
+        ['query'],
+      ),
+    'getEligibilityVote' : IDL.Func(
+        [SampleID],
+        [
+          IDL.Record({
+            'isEligible' : IDL.Bool,
+            'votes' : VerifyEligibilityDecisions,
+            'comments' : IDL.Text,
+          }),
+        ],
+        ['query'],
+      ),
+    'getNotifications' : IDL.Func([IDL.Text], [IDL.Vec(Notification)], []),
+    'getSample' : IDL.Func([SampleID], [Sample], ['query']),
     'getSortedTasksByDeadline' : IDL.Func(
         [],
         [IDL.Vec(IDL.Tuple(IDL.Text, Task))],
         ['query'],
       ),
+    'getTask' : IDL.Func([IDL.Text], [Task], ['query']),
+    'getTasks' : IDL.Func([], [IDL.Vec(IDL.Tuple(IDL.Text, Task))], ['query']),
+    'getTestSpecIds' : IDL.Func([], [IDL.Vec(TestSpecID)], ['query']),
     'getUser' : IDL.Func([], [IDL.Opt(User)], ['query']),
+    'loadClientById' : IDL.Func([ClientID], [Client], []),
+    'loadTestMaster' : IDL.Func([TestMasterID], [TestMaster], []),
     'markNotificationAsRead' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'removeTask' : IDL.Func([IDL.Text], [], []),
     'sendNotification' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'submitEligibilityVote' : IDL.Func(
+        [SampleID, IDL.Bool, IDL.Text, VerifyEligibilityDecisions],
+        [EligibilityVoteValuation],
+        [],
+      ),
+    'updateClient' : IDL.Func([ClientID, Client], [], []),
+    'updateSample' : IDL.Func([SampleID, IDL.Text], [], []),
+    'workflowCheckDataType' : IDL.Func([IDL.Text, IDL.Int], [User], ['query']),
   });
 };
 

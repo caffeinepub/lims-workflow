@@ -30,6 +30,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
+import { useActor } from "../hooks/useActor";
 import {
   ANALYSIS_RESULTS,
   AUDIT_LOG,
@@ -121,6 +122,7 @@ interface AnalysisProps {
 export function Analysis({ sampleId: propSampleId }: AnalysisProps) {
   const navigate = useNavigate();
   const { activeUser } = useRole();
+  const { actor } = useActor();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedSampleId, setSelectedSampleId] = useState(propSampleId || "");
@@ -190,21 +192,67 @@ export function Analysis({ sampleId: propSampleId }: AnalysisProps) {
 
   const handleSaveProgress = async () => {
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
     ANALYSIS_RESULTS[selectedSampleId] = rows;
+    if (actor && selectedSampleId) {
+      try {
+        const backendResults = rows.map((r) => ({
+          parameter: r.parameter,
+          observedValue: r.observedValue,
+          unit: r.unit,
+          verdict:
+            r.verdict === "PASS"
+              ? { __kind__: "pass" }
+              : r.verdict === "FAIL"
+                ? { __kind__: "fail" }
+                : { __kind__: "oos" },
+          remark: r.remarks || "",
+        }));
+        await (actor as any).saveAnalysisResult(
+          selectedSampleId,
+          backendResults,
+        );
+      } catch (err) {
+        console.warn("Backend saveAnalysisResult failed:", err);
+      }
+    }
     setSaving(false);
     toast.success("Progress saved");
   };
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
     ANALYSIS_RESULTS[selectedSampleId] = rows;
     const idx = SAMPLE_INTAKES.findIndex(
       (s) => s.sampleId === selectedSampleId,
     );
     if (idx !== -1)
       SAMPLE_INTAKES[idx] = { ...SAMPLE_INTAKES[idx], status: "SICReview" };
+
+    // Backend: submit analysis and advance to SICReview stage
+    if (actor && selectedSampleId) {
+      try {
+        const backendResults = rows.map((r) => ({
+          parameter: r.parameter,
+          observedValue: r.observedValue,
+          unit: r.unit,
+          verdict:
+            r.verdict === "PASS"
+              ? { __kind__: "pass" }
+              : r.verdict === "FAIL"
+                ? { __kind__: "fail" }
+                : { __kind__: "oos" },
+          remark: r.remarks || "",
+        }));
+        await (actor as any).saveAnalysisResult(
+          selectedSampleId,
+          backendResults,
+        );
+        await (actor as any).submitAnalysis(selectedSampleId);
+      } catch (err) {
+        console.warn("Backend submitAnalysis failed:", err);
+      }
+    }
+
     AUDIT_LOG.push({
       id: `al-${Date.now()}`,
       timestamp: new Date().toISOString(),

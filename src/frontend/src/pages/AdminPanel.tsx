@@ -33,6 +33,7 @@ import {
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { useRole } from "../contexts/RoleContext";
+import { useActor } from "../hooks/useActor";
 import {
   AUDIT_LOG,
   CLIENTS,
@@ -272,6 +273,7 @@ function UserManagement() {
 
 // ── Client Master ──────────────────────────────────────────────
 function ClientMaster() {
+  const { actor } = useActor();
   const [clients, setClients] = useState<Client[]>([...CLIENTS]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
@@ -312,20 +314,43 @@ function ClientMaster() {
     setOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) {
       toast.error("Client name is required");
       return;
     }
+    const backendClient = {
+      name: form.name,
+      contactPerson: form.contactPerson,
+      email: form.email,
+      phone: form.phone,
+      address: form.address,
+      city: form.city,
+      pinCode: form.pinCode,
+    };
     if (editing) {
       setClients((prev) =>
         prev.map((c) => (c.id === editing.id ? { ...editing, ...form } : c)),
       );
+      if (actor) {
+        try {
+          await actor.updateClient(BigInt(0), backendClient);
+        } catch (e) {
+          console.warn("updateClient failed:", e);
+        }
+      }
       toast.success("Client updated");
     } else {
       const newClient: Client = { id: `cli-${Date.now()}`, ...form };
       setClients((prev) => [...prev, newClient]);
       CLIENTS.push(newClient);
+      if (actor) {
+        try {
+          await actor.addClient(backendClient);
+        } catch (e) {
+          console.warn("addClient failed:", e);
+        }
+      }
       toast.success("Client created");
     }
     setOpen(false);
@@ -461,6 +486,7 @@ function ClientMaster() {
 
 // ── Test Names Master ──────────────────────────────────────────
 function TestNamesMaster() {
+  const { actor } = useActor();
   const [tests, setTests] = useState<TestSample[]>([...TEST_SAMPLES]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TestSample | null>(null);
@@ -507,7 +533,7 @@ function TestNamesMaster() {
       prev.map((p) => (p.id === id ? { ...p, [key]: value } : p)),
     );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.testName.trim()) {
       toast.error("Test name is required");
       return;
@@ -527,6 +553,26 @@ function TestNamesMaster() {
       };
       setTests((prev) => [...prev, newTest]);
       TEST_SAMPLES.push(newTest);
+      if (actor) {
+        try {
+          const backendTM = {
+            testName: form.testName,
+            testType: form.testType,
+            status: "active" as never,
+            daysRequired: BigInt(14),
+            parameters: params.map((p) => ({
+              name: p.name,
+              unit: p.unit,
+              acceptanceCriteria: p.acceptanceCriteria,
+              minValue: BigInt(0),
+              maxValue: BigInt(100),
+            })),
+          };
+          await actor.addTestMaster(backendTM);
+        } catch (e) {
+          console.warn("addTestMaster failed:", e);
+        }
+      }
       toast.success("Test created");
     }
     setOpen(false);

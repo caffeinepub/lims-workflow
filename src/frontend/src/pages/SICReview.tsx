@@ -18,6 +18,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
+import { useActor } from "../hooks/useActor";
 import {
   ANALYSIS_RESULTS,
   AUDIT_LOG,
@@ -70,6 +71,7 @@ const COA_TEST_PARAMS = [
 export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
   const navigate = useNavigate();
   const { activeUser } = useRole();
+  const { actor } = useActor();
 
   const [selectedSampleId, setSelectedSampleId] = useState(propSampleId || "");
   const sample = selectedSampleId ? getSampleById(selectedSampleId) : null;
@@ -94,7 +96,6 @@ export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
     }
     setCommentsError("");
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 800));
 
     const idx = SAMPLE_INTAKES.findIndex(
       (s) => s.sampleId === selectedSampleId,
@@ -118,6 +119,29 @@ export function SICReview({ sampleId: propSampleId }: SICReviewProps) {
           ? `SIC review approved by ${activeUser.name}. Comments: ${approvalComments}`
           : `Returned to analyst by ${activeUser.name}. Reason: ${approvalComments}`,
     });
+
+    // Backend: save SIC review and advance stage
+    if (actor && selectedSampleId) {
+      try {
+        const flagged = Object.entries(checkedRows)
+          .filter(([, checked]) => checked)
+          .map((_, i) => BigInt(i));
+        const review = {
+          reviewerName: activeUser.name,
+          decision: decision === "approve",
+          comments: approvalComments,
+          flaggedRows: flagged,
+        };
+        await (actor as any).saveSICReview(selectedSampleId, review);
+        if (decision === "approve") {
+          await (actor as any).approveSICReview(selectedSampleId);
+        } else {
+          await (actor as any).rejectSICReview(selectedSampleId);
+        }
+      } catch (err) {
+        console.warn("Backend SICReview failed:", err);
+      }
+    }
 
     setSubmitting(false);
     if (decision === "approve") {

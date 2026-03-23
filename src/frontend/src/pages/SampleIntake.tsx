@@ -16,6 +16,8 @@ import type React from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRole } from "../contexts/RoleContext";
+import { useActor } from "../hooks/useActor";
+import { buildSamplePayload, storeSampleId } from "../hooks/useBackendService";
 import { DUMMY_USERS, SAMPLE_INTAKES } from "../lib/mockData";
 
 const SAMPLE_TYPES = [
@@ -43,6 +45,7 @@ const PHYSICAL_FORMS = [
 export function SampleIntake() {
   const navigate = useNavigate();
   const { activeUser } = useRole();
+  const { actor } = useActor();
 
   const [form, setForm] = useState({
     customerName: "",
@@ -105,7 +108,6 @@ export function SampleIntake() {
     e.preventDefault();
     if (!validate()) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 800));
     const newId = `SI-2026-${String(SAMPLE_INTAKES.length + 1).padStart(3, "0")}`;
 
     const approvalDecisions = form.assignToSectionInCharge.map((uid) => {
@@ -135,6 +137,23 @@ export function SampleIntake() {
       createdAt: new Date().toISOString(),
       createdBy: activeUser.id,
     });
+
+    // Backend: persist sample to canister
+    if (actor) {
+      try {
+        const backendSample = buildSamplePayload({
+          sampleId: newId,
+          sampleName: form.sampleName,
+          clientName: form.customerName,
+          testName: form.sampleType,
+        });
+        const id = await actor.createSample(backendSample);
+        storeSampleId(id);
+      } catch (err) {
+        console.warn("Backend createSample failed (mock data used):", err);
+      }
+    }
+
     setSubmitting(false);
     toast.success(`Sample ${newId} created successfully`, {
       description: "Status: Intake — Pending eligibility check",

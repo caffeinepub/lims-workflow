@@ -7,12 +7,17 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface Task {
-    deadline: bigint;
-    taskType: TaskType;
-    taskId: string;
-    assignedRole: UserRole;
-    sampleId: string;
+export type TestSpecID = bigint;
+export interface EligibilityVoteValuation {
+    isEligible: boolean;
+    votes: VerifyEligibilityDecisions;
+    comments: string;
+}
+export interface SicReview {
+    decision: boolean;
+    flaggedRows: Array<bigint>;
+    reviewerName: string;
+    comments: string;
 }
 export interface User {
     principal: Principal;
@@ -20,12 +25,116 @@ export interface User {
     role: UserRole;
     isActive: boolean;
 }
+export interface Task {
+    deadline: bigint;
+    taskType: TaskType;
+    taskId: string;
+    assignedRole: UserRole;
+    sampleId: string;
+}
+export interface Sample {
+    rfa: {
+        sampleDetails: bigint;
+        registration: bigint;
+        billing: bigint;
+    };
+    clientName: string;
+    qaReview?: QaReview;
+    sampleStatus: SampleStatus;
+    testSpecs: Array<TestSpecification>;
+    testName: string;
+    sampleName: string;
+    sicReview?: SicReview;
+    dateReceived: bigint;
+    sampleId: string;
+    registrationId: bigint;
+    analysisResults: Array<AnalysisResult>;
+}
+export interface QaReview {
+    decision: boolean;
+    comments: string;
+    qaHeadName: string;
+}
+export interface TestMaster {
+    status: Variant_active_inactive;
+    testName: string;
+    testType: string;
+    parameters: Array<TestParameter>;
+    daysRequired: bigint;
+}
+export type SampleStatus = {
+    __kind__: "review";
+    review: null;
+} | {
+    __kind__: "pending";
+    pending: null;
+} | {
+    __kind__: "hold";
+    hold: string;
+} | {
+    __kind__: "completed";
+    completed: null;
+} | {
+    __kind__: "eligible";
+    eligible: null;
+} | {
+    __kind__: "analysis";
+    analysis: null;
+};
+export type ClientID = bigint;
+export interface TestSpecification {
+    method: string;
+    parameter: string;
+    targetSLA: bigint;
+    acceptanceCriteria: string;
+    referenceStandard: string;
+    assignedAnalyst: string;
+}
+export interface COAValue {
+    qaEmployee: string;
+    verificationEmployee: string;
+    registrationNumber: bigint;
+    issuedDateTime: bigint;
+    sicEmployee: string;
+    sampleIntakeEmployee: string;
+    coaNumber: bigint;
+}
+export type SampleID = string;
+export type TestMasterID = bigint;
 export interface Notification {
     isRead: boolean;
     message: string;
     timestamp: bigint;
     notificationId: string;
 }
+export interface VerifyEligibilityDecision {
+    decision: boolean;
+    userId: Principal;
+}
+export interface TestParameter {
+    minValue: bigint;
+    name: string;
+    unit: string;
+    acceptanceCriteria: string;
+    maxValue: bigint;
+}
+export interface Client {
+    city: string;
+    name: string;
+    contactPerson: string;
+    email: string;
+    address: string;
+    pinCode: string;
+    phone: string;
+}
+export interface AnalysisResult {
+    remark: string;
+    parameter: string;
+    unit: string;
+    verdict: Variant_oos_fail_pass;
+    observedValue: string;
+}
+export type VerifyEligibilityDecisions = Array<VerifyEligibilityDecision>;
 export enum TaskType {
     coa = "coa",
     eligibilityCheck = "eligibilityCheck",
@@ -39,13 +148,47 @@ export enum UserRole {
     sectionInCharge = "sectionInCharge",
     analyst = "analyst"
 }
+export enum Variant_active_inactive {
+    active = "active",
+    inactive = "inactive"
+}
+export enum Variant_oos_fail_pass {
+    oos = "oos",
+    fail = "fail",
+    pass = "pass"
+}
 export interface backendInterface {
+    addClient(client: Client): Promise<bigint>;
+    addTestMaster(testMaster: TestMaster): Promise<bigint>;
     completeTask(taskId: string): Promise<void>;
+    createSample(sample: Sample): Promise<SampleID>;
     createUser(name: string, role: UserRole): Promise<void>;
+    deleteClient(clientId: ClientID): Promise<void>;
+    findCoa(sampleId: SampleID): Promise<COAValue>;
+    findEligibilityVote(sampleId: SampleID): Promise<EligibilityVoteValuation>;
+    findTasks(taskId: string): Promise<Task>;
     getAllTasks(): Promise<Array<Task>>;
+    getClientSamples(clientId: Principal): Promise<Array<string>>;
+    getCompletedTasks(): Promise<Array<[string, Task]>>;
+    getEligibilityVote(sampleId: SampleID): Promise<{
+        isEligible: boolean;
+        votes: VerifyEligibilityDecisions;
+        comments: string;
+    }>;
     getNotifications(userId: string): Promise<Array<Notification>>;
+    getSample(sampleId: SampleID): Promise<Sample>;
     getSortedTasksByDeadline(): Promise<Array<[string, Task]>>;
+    getTask(taskId: string): Promise<Task>;
+    getTasks(): Promise<Array<[string, Task]>>;
+    getTestSpecIds(): Promise<Array<TestSpecID>>;
     getUser(): Promise<User | null>;
+    loadClientById(clientId: ClientID): Promise<Client>;
+    loadTestMaster(testMasterId: TestMasterID): Promise<TestMaster>;
     markNotificationAsRead(userId: string, notificationId: string): Promise<void>;
+    removeTask(taskId: string): Promise<void>;
     sendNotification(userId: string, message: string): Promise<void>;
+    submitEligibilityVote(sampleId: SampleID, isEligible: boolean, comments: string, votes: VerifyEligibilityDecisions): Promise<EligibilityVoteValuation>;
+    updateClient(clientId: ClientID, client: Client): Promise<void>;
+    updateSample(sampleId: SampleID, stage: string): Promise<void>;
+    workflowCheckDataType(name: string, value: bigint): Promise<User>;
 }

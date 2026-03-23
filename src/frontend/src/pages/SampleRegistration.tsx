@@ -31,6 +31,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
+import { useActor } from "../hooks/useActor";
 import {
   AUDIT_LOG,
   CLIENTS,
@@ -504,6 +505,7 @@ export function SampleRegistration({
 }: SampleRegistrationProps) {
   const navigate = useNavigate();
   const { activeUser } = useRole();
+  const { actor } = useActor();
 
   const [selectedSampleId, setSelectedSampleId] = useState(propSampleId || "");
   const sample = selectedSampleId ? getSampleById(selectedSampleId) : null;
@@ -634,7 +636,6 @@ export function SampleRegistration({
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
 
     const newRFA: RFARecord = {
       ...form,
@@ -649,6 +650,15 @@ export function SampleRegistration({
     );
     if (idx !== -1)
       SAMPLE_INTAKES[idx] = { ...SAMPLE_INTAKES[idx], status: "TestSpec" };
+
+    // Backend: advance sample to TestSpec stage
+    if (actor && selectedSampleId) {
+      try {
+        await actor.updateSample(selectedSampleId, "TestSpec");
+      } catch (err) {
+        console.warn("Backend updateSample (Registration) failed:", err);
+      }
+    }
 
     AUDIT_LOG.push({
       id: `al-${Date.now()}`,

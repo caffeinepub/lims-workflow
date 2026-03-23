@@ -18,6 +18,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
+import { useActor } from "../hooks/useActor";
 import {
   AUDIT_LOG,
   DUMMY_USERS,
@@ -72,6 +73,7 @@ export function EligibilityCheck({
 }: EligibilityCheckProps) {
   const navigate = useNavigate();
   const { activeUser } = useRole();
+  const { actor } = useActor();
 
   const [selectedSampleId, setSelectedSampleId] = useState(propSampleId || "");
   const [acceptanceChecked, setAcceptanceChecked] = useState<
@@ -158,7 +160,6 @@ export function EligibilityCheck({
     setCommentErrors((prev) => ({ ...prev, [activeUser.id]: "" }));
 
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 600));
 
     const idx = SAMPLE_INTAKES.findIndex(
       (s) => s.sampleId === selectedSampleId,
@@ -199,6 +200,20 @@ export function EligibilityCheck({
           ? `${activeUser.name} marked ${decision}: ${comment}`
           : `${activeUser.name} marked ${decision}`,
       });
+
+      // Backend: submit eligibility vote
+      if (actor) {
+        try {
+          await actor.submitEligibilityVote(
+            selectedSampleId,
+            decision === "approved",
+            comment,
+            [],
+          );
+        } catch (err) {
+          console.warn("Backend submitEligibilityVote failed:", err);
+        }
+      }
 
       setSubmitting(false);
 

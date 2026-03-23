@@ -10,7 +10,7 @@ import { Layout } from "./components/Layout";
 import { RoleProvider } from "./contexts/RoleContext";
 import { AdminPanel } from "./pages/AdminPanel";
 import { Analysis } from "./pages/Analysis";
-import { ApiDocs } from "./pages/ApiDocs";
+import ApiDocs from "./pages/ApiDocs";
 import { COA } from "./pages/COA";
 import { Calculator } from "./pages/Calculator";
 import { Dashboard } from "./pages/Dashboard";

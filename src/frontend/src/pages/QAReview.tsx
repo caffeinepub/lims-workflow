@@ -18,6 +18,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
+import { useActor } from "../hooks/useActor";
 import {
   ANALYSIS_RESULTS,
   AUDIT_LOG,
@@ -72,6 +73,7 @@ const COA_TEST_PARAMS = [
 export function QAReview({ sampleId: propSampleId }: QAReviewProps) {
   const navigate = useNavigate();
   const { activeUser } = useRole();
+  const { actor } = useActor();
 
   const [selectedSampleId, setSelectedSampleId] = useState(propSampleId || "");
   const sample = selectedSampleId ? getSampleById(selectedSampleId) : null;
@@ -97,7 +99,6 @@ export function QAReview({ sampleId: propSampleId }: QAReviewProps) {
     }
     setCommentsError("");
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
 
     const idx = SAMPLE_INTAKES.findIndex(
       (s) => s.sampleId === selectedSampleId,
@@ -146,6 +147,25 @@ export function QAReview({ sampleId: propSampleId }: QAReviewProps) {
       };
       COA_RECORDS.push(newCOA);
       setApproved(true);
+    }
+
+    // Backend: save QA review and advance stage
+    if (actor && selectedSampleId) {
+      try {
+        const review = {
+          qaHeadName: activeUser.name,
+          decision: decision === "approve",
+          comments: approvalComments,
+        };
+        await (actor as any).saveQAReview(selectedSampleId, review);
+        if (decision === "approve") {
+          await (actor as any).approveQAReview(selectedSampleId);
+        } else {
+          await (actor as any).rejectQAReview(selectedSampleId);
+        }
+      } catch (err) {
+        console.warn("Backend QAReview failed:", err);
+      }
     }
 
     AUDIT_LOG.push({

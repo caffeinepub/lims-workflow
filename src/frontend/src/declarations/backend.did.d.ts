@@ -10,11 +10,80 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface AnalysisResult {
+  'remark' : string,
+  'parameter' : string,
+  'unit' : string,
+  'verdict' : { 'oos' : null } |
+    { 'fail' : null } |
+    { 'pass' : null },
+  'observedValue' : string,
+}
+export interface COAValue {
+  'qaEmployee' : string,
+  'verificationEmployee' : string,
+  'registrationNumber' : bigint,
+  'issuedDateTime' : bigint,
+  'sicEmployee' : string,
+  'sampleIntakeEmployee' : string,
+  'coaNumber' : bigint,
+}
+export interface Client {
+  'city' : string,
+  'name' : string,
+  'contactPerson' : string,
+  'email' : string,
+  'address' : string,
+  'pinCode' : string,
+  'phone' : string,
+}
+export type ClientID = bigint;
+export interface EligibilityVoteValuation {
+  'isEligible' : boolean,
+  'votes' : VerifyEligibilityDecisions,
+  'comments' : string,
+}
 export interface Notification {
   'isRead' : boolean,
   'message' : string,
   'timestamp' : bigint,
   'notificationId' : string,
+}
+export interface QaReview {
+  'decision' : boolean,
+  'comments' : string,
+  'qaHeadName' : string,
+}
+export interface Sample {
+  'rfa' : {
+    'sampleDetails' : bigint,
+    'registration' : bigint,
+    'billing' : bigint,
+  },
+  'clientName' : string,
+  'qaReview' : [] | [QaReview],
+  'sampleStatus' : SampleStatus,
+  'testSpecs' : Array<TestSpecification>,
+  'testName' : string,
+  'sampleName' : string,
+  'sicReview' : [] | [SicReview],
+  'dateReceived' : bigint,
+  'sampleId' : string,
+  'registrationId' : bigint,
+  'analysisResults' : Array<AnalysisResult>,
+}
+export type SampleID = string;
+export type SampleStatus = { 'review' : null } |
+  { 'pending' : null } |
+  { 'hold' : string } |
+  { 'completed' : null } |
+  { 'eligible' : null } |
+  { 'analysis' : null };
+export interface SicReview {
+  'decision' : boolean,
+  'flaggedRows' : Array<bigint>,
+  'reviewerName' : string,
+  'comments' : string,
 }
 export interface Task {
   'deadline' : bigint,
@@ -28,6 +97,31 @@ export type TaskType = { 'coa' : null } |
   { 'review' : null } |
   { 'analysis' : null } |
   { 'sampleIntake' : null };
+export interface TestMaster {
+  'status' : { 'active' : null } |
+    { 'inactive' : null },
+  'testName' : string,
+  'testType' : string,
+  'parameters' : Array<TestParameter>,
+  'daysRequired' : bigint,
+}
+export type TestMasterID = bigint;
+export interface TestParameter {
+  'minValue' : bigint,
+  'name' : string,
+  'unit' : string,
+  'acceptanceCriteria' : string,
+  'maxValue' : bigint,
+}
+export type TestSpecID = bigint;
+export interface TestSpecification {
+  'method' : string,
+  'parameter' : string,
+  'targetSLA' : bigint,
+  'acceptanceCriteria' : string,
+  'referenceStandard' : string,
+  'assignedAnalyst' : string,
+}
 export interface User {
   'principal' : Principal,
   'name' : string,
@@ -38,15 +132,51 @@ export type UserRole = { 'qa' : null } |
   { 'admin' : null } |
   { 'sectionInCharge' : null } |
   { 'analyst' : null };
+export interface VerifyEligibilityDecision {
+  'decision' : boolean,
+  'userId' : Principal,
+}
+export type VerifyEligibilityDecisions = Array<VerifyEligibilityDecision>;
 export interface _SERVICE {
+  'addClient' : ActorMethod<[Client], bigint>,
+  'addTestMaster' : ActorMethod<[TestMaster], bigint>,
   'completeTask' : ActorMethod<[string], undefined>,
+  'createSample' : ActorMethod<[Sample], SampleID>,
   'createUser' : ActorMethod<[string, UserRole], undefined>,
+  'deleteClient' : ActorMethod<[ClientID], undefined>,
+  'findCoa' : ActorMethod<[SampleID], COAValue>,
+  'findEligibilityVote' : ActorMethod<[SampleID], EligibilityVoteValuation>,
+  'findTasks' : ActorMethod<[string], Task>,
   'getAllTasks' : ActorMethod<[], Array<Task>>,
+  'getClientSamples' : ActorMethod<[Principal], Array<string>>,
+  'getCompletedTasks' : ActorMethod<[], Array<[string, Task]>>,
+  'getEligibilityVote' : ActorMethod<
+    [SampleID],
+    {
+      'isEligible' : boolean,
+      'votes' : VerifyEligibilityDecisions,
+      'comments' : string,
+    }
+  >,
   'getNotifications' : ActorMethod<[string], Array<Notification>>,
+  'getSample' : ActorMethod<[SampleID], Sample>,
   'getSortedTasksByDeadline' : ActorMethod<[], Array<[string, Task]>>,
+  'getTask' : ActorMethod<[string], Task>,
+  'getTasks' : ActorMethod<[], Array<[string, Task]>>,
+  'getTestSpecIds' : ActorMethod<[], Array<TestSpecID>>,
   'getUser' : ActorMethod<[], [] | [User]>,
+  'loadClientById' : ActorMethod<[ClientID], Client>,
+  'loadTestMaster' : ActorMethod<[TestMasterID], TestMaster>,
   'markNotificationAsRead' : ActorMethod<[string, string], undefined>,
+  'removeTask' : ActorMethod<[string], undefined>,
   'sendNotification' : ActorMethod<[string, string], undefined>,
+  'submitEligibilityVote' : ActorMethod<
+    [SampleID, boolean, string, VerifyEligibilityDecisions],
+    EligibilityVoteValuation
+  >,
+  'updateClient' : ActorMethod<[ClientID, Client], undefined>,
+  'updateSample' : ActorMethod<[SampleID, string], undefined>,
+  'workflowCheckDataType' : ActorMethod<[string, bigint], User>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

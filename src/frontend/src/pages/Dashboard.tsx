@@ -39,6 +39,7 @@ import {
 } from "recharts";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
+import { useAllTasks } from "../hooks/useBackendService";
 import {
   AUDIT_LOG,
   SAMPLE_INTAKES,
