@@ -160,6 +160,9 @@ export enum Variant_oos_fail_pass {
 export interface backendInterface {
     addClient(client: Client): Promise<bigint>;
     addTestMaster(testMaster: TestMaster): Promise<bigint>;
+    assignAnalyst(sampleId: string, analystName: string): Promise<void>;
+    approveQAReview(sampleId: string): Promise<void>;
+    approveSICReview(sampleId: string): Promise<void>;
     completeTask(taskId: string): Promise<void>;
     createSample(sample: Sample): Promise<SampleID>;
     createUser(name: string, role: UserRole): Promise<void>;
@@ -167,8 +170,11 @@ export interface backendInterface {
     findCoa(sampleId: SampleID): Promise<COAValue>;
     findEligibilityVote(sampleId: SampleID): Promise<EligibilityVoteValuation>;
     findTasks(taskId: string): Promise<Task>;
+    generateRegistrationNumber(year: bigint, month: bigint): Promise<string>;
     getAllTasks(): Promise<Array<Task>>;
+    getAnalysisResult(sampleId: string): Promise<Array<AnalysisResult>>;
     getClientSamples(clientId: Principal): Promise<Array<string>>;
+    getCOABySampleId(sampleId: string): Promise<COAValue | null>;
     getCompletedTasks(): Promise<Array<[string, Task]>>;
     getEligibilityVote(sampleId: SampleID): Promise<{
         isEligible: boolean;
@@ -176,17 +182,29 @@ export interface backendInterface {
         comments: string;
     }>;
     getNotifications(userId: string): Promise<Array<Notification>>;
+    getQAReview(sampleId: string): Promise<QaReview | null>;
     getSample(sampleId: SampleID): Promise<Sample>;
+    getSICReview(sampleId: string): Promise<SicReview | null>;
     getSortedTasksByDeadline(): Promise<Array<[string, Task]>>;
     getTask(taskId: string): Promise<Task>;
     getTasks(): Promise<Array<[string, Task]>>;
+    getTestSpec(sampleId: string): Promise<Array<TestSpecification>>;
     getTestSpecIds(): Promise<Array<TestSpecID>>;
     getUser(): Promise<User | null>;
+    issueCOA(sampleId: string, coa: COAValue): Promise<void>;
+    listSamples(): Promise<Array<Sample>>;
     loadClientById(clientId: ClientID): Promise<Client>;
     loadTestMaster(testMasterId: TestMasterID): Promise<TestMaster>;
     markNotificationAsRead(userId: string, notificationId: string): Promise<void>;
+    rejectQAReview(sampleId: string): Promise<void>;
+    rejectSICReview(sampleId: string): Promise<void>;
     removeTask(taskId: string): Promise<void>;
+    saveAnalysisResult(sampleId: string, results: Array<AnalysisResult>): Promise<void>;
+    saveSICReview(sampleId: string, review: SicReview): Promise<void>;
+    saveTestSpec(sampleId: string, testSpecs: Array<TestSpecification>): Promise<void>;
+    saveQAReview(sampleId: string, review: QaReview): Promise<void>;
     sendNotification(userId: string, message: string): Promise<void>;
+    submitAnalysis(sampleId: string): Promise<void>;
     submitEligibilityVote(sampleId: SampleID, isEligible: boolean, comments: string, votes: VerifyEligibilityDecisions): Promise<EligibilityVoteValuation>;
     updateClient(clientId: ClientID, client: Client): Promise<void>;
     updateSample(sampleId: SampleID, stage: string): Promise<void>;

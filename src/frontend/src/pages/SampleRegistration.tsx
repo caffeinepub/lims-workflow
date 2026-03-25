@@ -16,10 +16,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
+  ClipboardList,
+  Copy,
   FileText,
   FlaskConical,
+  History,
   Info,
   Plus,
   Save,
@@ -29,18 +33,22 @@ import {
 import type React from "react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { AnimatedTabs } from "../components/AnimatedTabs";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
 import { useActor } from "../hooks/useActor";
 import {
+  ANALYSIS_RESULTS,
   AUDIT_LOG,
   CLIENTS,
+  COA_RECORDS,
   type Client,
   type RFARecord,
   RFA_RECORDS,
   SAMPLE_INTAKES,
   type SampleDetail,
   TEST_SAMPLES,
+  TEST_SPECS,
   getSampleById,
 } from "../lib/mockData";
 
@@ -516,6 +524,10 @@ export function SampleRegistration({
   );
   const [tab, setTab] = useState("client");
   const [submitting, setSubmitting] = useState(false);
+  const [registrationComplete, setRegistrationComplete] = useState(false);
+  const [generatedRegNumber, setGeneratedRegNumber] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyTab, setHistoryTab] = useState("intake");
 
   // Client autofill state
   const [clientQuery, setClientQuery] = useState(
@@ -529,7 +541,7 @@ export function SampleRegistration({
   const [form, setForm] = useState({
     registrationNumber:
       existingRFA?.registrationNumber ||
-      `REG-2026-${String(RFA_RECORDS.length + 1).padStart(3, "0")}`,
+      `DKR${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(RFA_RECORDS.length + 1).padStart(4, "0")}`,
     clientName: sample?.customerName || "",
     address: "",
     pinCode: "",
@@ -637,13 +649,35 @@ export function SampleRegistration({
   const handleSubmit = async () => {
     setSubmitting(true);
 
+    // Generate DKR registration number
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    let dkrRegNumber = form.registrationNumber;
+
+    if (actor) {
+      try {
+        dkrRegNumber = await (actor as any).generateRegistrationNumber(
+          BigInt(year),
+          BigInt(month),
+        );
+      } catch (err) {
+        // fallback: generate optimistically
+        dkrRegNumber = `DKR${year}${String(month).padStart(2, "0")}${String(RFA_RECORDS.length + 1).padStart(4, "0")}`;
+        console.warn("generateRegistrationNumber fallback used:", err);
+      }
+    }
+
     const newRFA: RFARecord = {
       ...form,
+      registrationNumber: dkrRegNumber,
       id: `rfa-${Date.now()}`,
       sampleId: selectedSampleId,
       sampleDetails,
     };
     RFA_RECORDS.push(newRFA);
+    setField("registrationNumber", dkrRegNumber);
+    setGeneratedRegNumber(dkrRegNumber);
 
     const idx = SAMPLE_INTAKES.findIndex(
       (s) => s.sampleId === selectedSampleId,
@@ -667,17 +701,14 @@ export function SampleRegistration({
       userName: activeUser.name,
       action: "CREATE",
       entity: "RFA",
-      entityId: form.registrationNumber,
-      details: `Registration ${form.registrationNumber} created for ${selectedSampleId}`,
+      entityId: dkrRegNumber,
+      details: `Registration ${dkrRegNumber} created for ${selectedSampleId}`,
     });
 
     setSubmitting(false);
+    setRegistrationComplete(true);
     toast.success("Registration saved", {
-      description: `${form.registrationNumber} — Advancing to Test Specification`,
-    });
-    navigate({
-      to: "/test-specification/$sampleId",
-      params: { sampleId: selectedSampleId },
+      description: `${dkrRegNumber} — Registration number assigned`,
     });
   };
 
@@ -745,6 +776,24 @@ export function SampleRegistration({
     );
   }
 
+  // ── History helper data ─────────────────────────────────────────────────────
+  const sampleForHistory = getSampleById(selectedSampleId);
+  const intakeRecord = sampleForHistory;
+  const eligibilityRecord = intakeRecord?.approvalDecisions;
+  const registrationRecord = RFA_RECORDS.find(
+    (r) => r.sampleId === selectedSampleId,
+  );
+  const testSpecHistory = TEST_SPECS[selectedSampleId] || [];
+  const analysisHistory = ANALYSIS_RESULTS[selectedSampleId] || [];
+  const coaHistory = COA_RECORDS.find((c) => c.sampleId === selectedSampleId);
+
+  const verdictColor = (v: string) => {
+    if (v === "PASS")
+      return "bg-emerald-100 text-emerald-700 border-emerald-200";
+    if (v === "FAIL") return "bg-red-100 text-red-700 border-red-200";
+    return "bg-amber-100 text-amber-700 border-amber-200";
+  };
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="page-header">
@@ -766,15 +815,691 @@ export function SampleRegistration({
             </p>
           </div>
         </div>
-        <StatusBadge status={sample.status} />
+        <div className="flex items-center gap-2">
+          {(existingRFA || registrationComplete) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setShowHistory(!showHistory)}
+              data-ocid="registration.history.button"
+            >
+              <History className="h-3.5 w-3.5" />
+              {showHistory ? "Hide History" : "View History"}
+            </Button>
+          )}
+          <StatusBadge status={sample.status} />
+        </div>
       </div>
 
+      {/* ── Registration Success Banner ── */}
+      {registrationComplete && (
+        <div
+          className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5 space-y-4"
+          data-ocid="registration.success_state"
+        >
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-bold text-emerald-800">
+                Registration Successful!
+              </h3>
+              <p className="text-sm text-emerald-600 mt-0.5">
+                {sample.sampleName} — {form.clientName || sample.customerName}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+              Registration Number:
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="px-4 py-2 rounded-lg bg-blue-600 text-white font-mono text-lg font-bold tracking-widest shadow">
+                {generatedRegNumber || form.registrationNumber}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 border-blue-300 text-blue-600 hover:bg-blue-50"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    generatedRegNumber || form.registrationNumber,
+                  );
+                  toast.success("Copied to clipboard");
+                }}
+                data-ocid="registration.copy_reg_number.button"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+              onClick={() => {
+                setShowHistory(true);
+                setHistoryTab("intake");
+              }}
+              data-ocid="registration.view_history.button"
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              View Sample History
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5 text-xs bg-blue-600 hover:bg-blue-700"
+              onClick={() =>
+                navigate({
+                  to: "/test-specification/$sampleId",
+                  params: { sampleId: selectedSampleId },
+                })
+              }
+              data-ocid="registration.proceed_testspec.button"
+            >
+              Proceed to Test Spec →
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sample Workflow History ── */}
+      {showHistory && (
+        <div
+          className="mb-6 rounded-xl border border-border bg-white shadow-sm overflow-hidden"
+          data-ocid="registration.history.panel"
+        >
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-border bg-muted/20">
+            <History className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-bold text-foreground">
+              Sample Workflow History
+            </h3>
+            <span className="ml-auto text-xs text-muted-foreground">
+              {selectedSampleId}
+            </span>
+          </div>
+          <Tabs value={historyTab} onValueChange={setHistoryTab}>
+            <TabsList className="w-full justify-start rounded-none border-b border-border bg-transparent h-auto px-4 pt-2 gap-1 overflow-x-auto">
+              {[
+                { value: "intake", label: "Intake", color: "border-blue-400" },
+                {
+                  value: "eligibility",
+                  label: "Eligibility",
+                  color: "border-indigo-400",
+                },
+                {
+                  value: "registration",
+                  label: "Registration",
+                  color: "border-emerald-400",
+                },
+                {
+                  value: "testspec",
+                  label: "Test Spec",
+                  color: "border-amber-400",
+                },
+                {
+                  value: "analysis",
+                  label: "Analysis",
+                  color: "border-violet-400",
+                },
+                { value: "sic", label: "SIC Review", color: "border-teal-400" },
+                { value: "qa", label: "QA Review", color: "border-rose-400" },
+                { value: "coa", label: "Final COA", color: "border-navy-400" },
+              ].map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setHistoryTab(t.value)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-t-md border-b-2 transition-colors whitespace-nowrap ${historyTab === t.value ? `${t.color} text-foreground bg-white` : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  data-ocid={`registration.history.${t.value}.tab`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </TabsList>
+            <div className="p-5">
+              {/* Intake */}
+              {historyTab === "intake" && (
+                <div className="border-t-4 border-blue-400 rounded-lg bg-blue-50/30 p-4 space-y-3">
+                  {intakeRecord ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                      {[
+                        { label: "Sample ID", value: intakeRecord.sampleId },
+                        {
+                          label: "Customer Name",
+                          value: intakeRecord.customerName,
+                        },
+                        {
+                          label: "Sample Name",
+                          value: intakeRecord.sampleName,
+                        },
+                        {
+                          label: "Sample Type",
+                          value: intakeRecord.sampleType,
+                        },
+                        {
+                          label: "Physical Form",
+                          value: intakeRecord.physicalForm,
+                        },
+                        {
+                          label: "Date of Receipt",
+                          value: intakeRecord.dateOfReceipt,
+                        },
+                        {
+                          label: "Number of Units",
+                          value: String(intakeRecord.numberOfUnits),
+                        },
+                        {
+                          label: "Special Handling",
+                          value: intakeRecord.specialHandling || "—",
+                        },
+                        { label: "Status", value: intakeRecord.status },
+                        { label: "Created At", value: intakeRecord.createdAt },
+                        { label: "Created By", value: intakeRecord.createdBy },
+                        {
+                          label: "Assigned SIC",
+                          value: Array.isArray(
+                            intakeRecord.assignToSectionInCharge,
+                          )
+                            ? intakeRecord.assignToSectionInCharge.join(", ")
+                            : intakeRecord.assignToSectionInCharge,
+                        },
+                      ].map((r) => (
+                        <div key={r.label} className="space-y-0.5">
+                          <p className="text-muted-foreground uppercase tracking-wider text-[10px]">
+                            {r.label}
+                          </p>
+                          <p className="font-medium text-foreground">
+                            {r.value || "—"}
+                          </p>
+                        </div>
+                      ))}
+                      {intakeRecord.requestedTests &&
+                        intakeRecord.requestedTests.length > 0 && (
+                          <div className="col-span-2 md:col-span-3 space-y-1">
+                            <p className="text-muted-foreground uppercase tracking-wider text-[10px]">
+                              Requested Tests
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {intakeRecord.requestedTests.map((t) => (
+                                <span
+                                  key={t}
+                                  className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-medium"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No intake data available for this stage.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Eligibility */}
+              {historyTab === "eligibility" && (
+                <div className="border-t-4 border-indigo-400 rounded-lg bg-indigo-50/30 p-4 space-y-3">
+                  {eligibilityRecord && eligibilityRecord.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-indigo-200">
+                              <th className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">
+                                Reviewer
+                              </th>
+                              <th className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">
+                                Decision
+                              </th>
+                              <th className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">
+                                Comment
+                              </th>
+                              <th className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">
+                                Date
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {eligibilityRecord.map((d) => (
+                              <tr
+                                key={d.userId}
+                                className="border-b border-indigo-100"
+                              >
+                                <td className="py-2 px-3 font-medium">
+                                  {d.userName}
+                                </td>
+                                <td className="py-2 px-3">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${d.decision === "approved" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : d.decision === "rejected" ? "bg-red-100 text-red-700 border-red-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}
+                                  >
+                                    {d.decision}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-3 text-muted-foreground">
+                                  {d.comment || "—"}
+                                </td>
+                                <td className="py-2 px-3 text-muted-foreground">
+                                  {d.decidedAt || "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No eligibility check data available for this stage.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Registration */}
+              {historyTab === "registration" && (
+                <div className="border-t-4 border-emerald-400 rounded-lg bg-emerald-50/30 p-4 space-y-3">
+                  {registrationRecord ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground">
+                          Registration Number:
+                        </span>
+                        <span className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-mono text-sm font-bold tracking-widest">
+                          {registrationRecord.registrationNumber}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                        {[
+                          {
+                            label: "Client Name",
+                            value: registrationRecord.clientName,
+                          },
+                          {
+                            label: "Entry Date",
+                            value: registrationRecord.entryDate,
+                          },
+                          {
+                            label: "Contact Person",
+                            value: registrationRecord.person,
+                          },
+                          { label: "Phone", value: registrationRecord.phone },
+                          { label: "Email", value: registrationRecord.emailId },
+                          {
+                            label: "Reference Quotation",
+                            value: registrationRecord.referenceQuotation,
+                          },
+                          {
+                            label: "Billing Address",
+                            value: registrationRecord.clientBillingAddress,
+                          },
+                          { label: "Market", value: registrationRecord.market },
+                          {
+                            label: "Report Form",
+                            value: registrationRecord.reportRequiredForm,
+                          },
+                          {
+                            label: "Testing Purpose",
+                            value: registrationRecord.testingPurpose,
+                          },
+                        ].map((r) => (
+                          <div key={r.label} className="space-y-0.5">
+                            <p className="text-muted-foreground uppercase tracking-wider text-[10px]">
+                              {r.label}
+                            </p>
+                            <p className="font-medium text-foreground">
+                              {r.value || "—"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      {registrationRecord.sampleDetails &&
+                        registrationRecord.sampleDetails.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                              Sample Details (
+                              {registrationRecord.sampleDetails.length})
+                            </p>
+                            <div className="space-y-2">
+                              {registrationRecord.sampleDetails.map((sd, i) => (
+                                <div
+                                  key={sd.id}
+                                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-200 bg-white text-xs"
+                                >
+                                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                                    {i + 1}
+                                  </span>
+                                  <span className="font-medium">
+                                    {sd.sampleName}
+                                  </span>
+                                  {sd.batchNumber && (
+                                    <span className="text-muted-foreground">
+                                      · Batch {sd.batchNumber}
+                                    </span>
+                                  )}
+                                  {sd.testType && (
+                                    <span className="ml-auto px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px]">
+                                      {sd.testType}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No registration data available for this stage.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Test Spec */}
+              {historyTab === "testspec" && (
+                <div className="border-t-4 border-amber-400 rounded-lg bg-amber-50/30 p-4">
+                  {testSpecHistory.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-amber-200">
+                            {[
+                              "Parameter",
+                              "Acceptance Criteria",
+                              "Method/SOP",
+                              "Reference Standard",
+                              "Assigned Analyst",
+                              "Target SLA",
+                            ].map((h) => (
+                              <th
+                                key={h}
+                                className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wider text-[10px]"
+                              >
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {testSpecHistory.map((row) => (
+                            <tr
+                              key={row.id}
+                              className="border-b border-amber-100"
+                            >
+                              <td className="py-2 px-3 font-medium">
+                                {row.parameter}
+                              </td>
+                              <td className="py-2 px-3">
+                                {row.acceptanceCriteria}
+                              </td>
+                              <td className="py-2 px-3 text-muted-foreground">
+                                {row.methodSop}
+                              </td>
+                              <td className="py-2 px-3 text-muted-foreground">
+                                {row.referenceStandard}
+                              </td>
+                              <td className="py-2 px-3">
+                                {row.assignedAnalyst}
+                              </td>
+                              <td className="py-2 px-3 text-muted-foreground">
+                                {row.targetSla}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No test specification data available for this stage.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Analysis */}
+              {historyTab === "analysis" && (
+                <div className="border-t-4 border-violet-400 rounded-lg bg-violet-50/30 p-4">
+                  {analysisHistory.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-violet-200">
+                            {[
+                              "Parameter",
+                              "Acceptance Criteria",
+                              "Observed Value",
+                              "Unit",
+                              "Verdict",
+                              "Remarks",
+                            ].map((h) => (
+                              <th
+                                key={h}
+                                className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wider text-[10px]"
+                              >
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analysisHistory.map((row) => (
+                            <tr
+                              key={row.id}
+                              className="border-b border-violet-100"
+                            >
+                              <td className="py-2 px-3 font-medium">
+                                {row.parameter}
+                              </td>
+                              <td className="py-2 px-3">
+                                {row.acceptanceCriteria}
+                              </td>
+                              <td className="py-2 px-3 font-mono">
+                                {row.observedValue}
+                              </td>
+                              <td className="py-2 px-3 text-muted-foreground">
+                                {row.unit}
+                              </td>
+                              <td className="py-2 px-3">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${verdictColor(row.verdict)}`}
+                                >
+                                  {row.verdict}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-muted-foreground">
+                                {row.remarks || "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No analysis data available for this stage.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* SIC Review */}
+              {historyTab === "sic" && (
+                <div className="border-t-4 border-teal-400 rounded-lg bg-teal-50/30 p-4 space-y-3">
+                  {intakeRecord?.approvalDecisions &&
+                  intakeRecord.approvalDecisions.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="space-y-0.5">
+                        <p className="text-muted-foreground uppercase tracking-wider text-[10px]">
+                          Reviewer
+                        </p>
+                        <p className="font-medium">
+                          {intakeRecord.approvalDecisions[0]?.userName || "—"}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-muted-foreground uppercase tracking-wider text-[10px]">
+                          Decision
+                        </p>
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${intakeRecord.approvalDecisions[0]?.decision === "approved" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-red-100 text-red-700 border-red-200"}`}
+                        >
+                          {intakeRecord.approvalDecisions[0]?.decision}
+                        </span>
+                      </div>
+                      <div className="col-span-2 space-y-0.5">
+                        <p className="text-muted-foreground uppercase tracking-wider text-[10px]">
+                          Comments
+                        </p>
+                        <p className="font-medium">
+                          {intakeRecord.approvalDecisions[0]?.comment || "—"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No SIC review data available for this stage.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* QA Review */}
+              {historyTab === "qa" && (
+                <div className="border-t-4 border-rose-400 rounded-lg bg-rose-50/30 p-4 space-y-3">
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No QA review data available for this stage.
+                  </p>
+                </div>
+              )}
+
+              {/* Final COA */}
+              {historyTab === "coa" && (
+                <div className="border-t-4 border-blue-800 rounded-lg bg-slate-50/30 p-4 space-y-3">
+                  {coaHistory ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                        {[
+                          { label: "COA Number", value: coaHistory.coaNumber },
+                          {
+                            label: "Registration Number",
+                            value: coaHistory.registrationNumber,
+                          },
+                          { label: "Issue Date", value: coaHistory.issueDate },
+                          { label: "Analyst", value: coaHistory.analystName },
+                          {
+                            label: "SIC Reviewer",
+                            value: coaHistory.sicReviewerName,
+                          },
+                          {
+                            label: "QA Approver",
+                            value: coaHistory.qaApproverName,
+                          },
+                          {
+                            label: "Overall Result",
+                            value: coaHistory.overallResult,
+                          },
+                        ].map((r) => (
+                          <div key={r.label} className="space-y-0.5">
+                            <p className="text-muted-foreground uppercase tracking-wider text-[10px]">
+                              {r.label}
+                            </p>
+                            <p className="font-medium text-foreground">
+                              {r.value || "—"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      {coaHistory.parameters &&
+                        coaHistory.parameters.length > 0 && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="border-b border-slate-200">
+                                  {[
+                                    "Parameter",
+                                    "Acceptance Criteria",
+                                    "Observed Value",
+                                    "Unit",
+                                    "Verdict",
+                                  ].map((h) => (
+                                    <th
+                                      key={h}
+                                      className="text-left py-2 px-3 text-muted-foreground font-semibold uppercase tracking-wider text-[10px]"
+                                    >
+                                      {h}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {coaHistory.parameters.map((p) => (
+                                  <tr
+                                    key={p.parameter}
+                                    className="border-b border-slate-100"
+                                  >
+                                    <td className="py-2 px-3 font-medium">
+                                      {p.parameter}
+                                    </td>
+                                    <td className="py-2 px-3">
+                                      {p.acceptanceCriteria}
+                                    </td>
+                                    <td className="py-2 px-3 font-mono">
+                                      {p.observedValue}
+                                    </td>
+                                    <td className="py-2 px-3 text-muted-foreground">
+                                      {p.unit}
+                                    </td>
+                                    <td className="py-2 px-3">
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${verdictColor(p.verdict)}`}
+                                      >
+                                        {p.verdict}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No COA data available for this stage. Complete the full
+                      workflow to generate a COA.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </Tabs>
+        </div>
+      )}
+
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList className="grid grid-cols-3 w-full">
-          <TabsTrigger value="client">Client Info</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
-          <TabsTrigger value="receipt">Sample Receipt</TabsTrigger>
-        </TabsList>
+        <div className="bg-white border border-border rounded-xl px-4 py-3 shadow-sm">
+          <AnimatedTabs
+            tabs={[
+              { id: "client", label: "Client Info" },
+              { id: "billing", label: "Billing" },
+              { id: "receipt", label: "Sample Receipt" },
+              {
+                id: "history",
+                label: "Workflow History",
+                icon: <History className="h-3.5 w-3.5" />,
+              },
+            ]}
+            activeTab={tab}
+            onTabChange={setTab}
+          />
+        </div>
 
         {/* Tab 1: Client Info */}
         <TabsContent value="client">

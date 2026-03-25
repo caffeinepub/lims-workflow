@@ -209,7 +209,7 @@ function UserManagement() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit User" : "Create User"}</DialogTitle>
           </DialogHeader>
@@ -436,7 +436,7 @@ function ClientMaster() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Client" : "Add Client"}</DialogTitle>
           </DialogHeader>
@@ -676,7 +676,7 @@ function TestNamesMaster() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Test" : "Add Test"}</DialogTitle>
           </DialogHeader>

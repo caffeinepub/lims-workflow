@@ -25,8 +25,9 @@ import {
   ShieldCheck,
   TestTube,
   User,
+  XCircle,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
@@ -34,6 +35,7 @@ import { useActor } from "../hooks/useActor";
 import {
   AUDIT_LOG,
   DUMMY_USERS,
+  RFA_RECORDS,
   SAMPLE_INTAKES,
   TEST_SPECS,
   type TestSpecRow,
@@ -44,28 +46,7 @@ interface TestSpecificationProps {
   sampleId?: string;
 }
 
-const DEFAULT_PARAMS = [
-  {
-    parameter: "Assay (% w/w)",
-    acceptanceCriteria: "98.0% - 102.0%",
-    methodSop: "SOP-QC-042 (HPLC)",
-  },
-  {
-    parameter: "Related Substances",
-    acceptanceCriteria: "NMT 0.5%",
-    methodSop: "SOP-QC-042 (HPLC)",
-  },
-  {
-    parameter: "Water Content",
-    acceptanceCriteria: "NMT 1.0%",
-    methodSop: "SOP-KF-001",
-  },
-  {
-    parameter: "Total Aerobic Count",
-    acceptanceCriteria: "NMT 1000 CFU/g",
-    methodSop: "SOP-MLT-001",
-  },
-];
+// DEFAULT_PARAMS removed — data loaded from backend or registration
 
 const METHOD_SOP_OPTIONS = [
   "USP <790>",
@@ -117,20 +98,77 @@ export function TestSpecification({
   const analysts = DUMMY_USERS.filter((u) => u.role === "analyst");
   const testSpecSamples = SAMPLE_INTAKES.filter((s) => s.status === "TestSpec");
 
-  const existingSpecs = TEST_SPECS[selectedSampleId];
-  const [rows, setRows] = useState<TestSpecRow[]>(
-    existingSpecs ||
-      DEFAULT_PARAMS.map((p, i) => ({
-        id: `ts-new-${i}`,
-        parameter: p.parameter,
-        acceptanceCriteria: p.acceptanceCriteria,
-        methodSop: p.methodSop,
-        referenceStandard: "",
-        qaNotes: "",
-        assignedAnalyst: "",
-        targetSla: "",
-      })),
-  );
+  const [rows, setRows] = useState<TestSpecRow[]>([]);
+
+  // Load test spec from backend or from registration data when sample changes
+  useEffect(() => {
+    if (!selectedSampleId) {
+      setRows([]);
+      return;
+    }
+    const cachedSpecs = TEST_SPECS[selectedSampleId];
+    if (cachedSpecs && cachedSpecs.length > 0) {
+      setRows(cachedSpecs);
+      return;
+    }
+    const loadSpec = async () => {
+      try {
+        if (actor) {
+          const backendSpecs = await (actor as any).getTestSpec(
+            selectedSampleId,
+          );
+          if (backendSpecs && backendSpecs.length > 0) {
+            const mapped: TestSpecRow[] = backendSpecs.map(
+              (s: any, i: number) => ({
+                id: `ts-backend-${i}`,
+                parameter: s.parameter,
+                acceptanceCriteria: s.acceptanceCriteria,
+                methodSop: s.method,
+                referenceStandard: s.referenceStandard || "",
+                qaNotes: "",
+                assignedAnalyst: s.assignedAnalyst || "",
+                targetSla: s.targetSLA ? String(Number(s.targetSLA)) : "",
+              }),
+            );
+            setRows(mapped);
+            TEST_SPECS[selectedSampleId] = mapped;
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("getTestSpec failed:", err);
+      }
+      // Fallback: pre-populate from RFA/registration data
+      const rfaRecord = RFA_RECORDS.find(
+        (r) => r.sampleId === selectedSampleId,
+      );
+      if (rfaRecord?.sampleDetails && rfaRecord.sampleDetails.length > 0) {
+        const paramSet = new Set<string>();
+        for (const detail of rfaRecord.sampleDetails) {
+          for (const p of detail.testParameters) paramSet.add(p);
+        }
+        const paramRows: TestSpecRow[] = Array.from(paramSet).map(
+          (param, i) => ({
+            id: `ts-reg-${i}`,
+            parameter: param,
+            acceptanceCriteria: "",
+            methodSop: "",
+            referenceStandard: "",
+            qaNotes: "",
+            assignedAnalyst: "",
+            targetSla: "",
+          }),
+        );
+        if (paramRows.length > 0) {
+          setRows(paramRows);
+          return;
+        }
+      }
+      // Final fallback: empty rows so user can add manually
+      setRows([]);
+    };
+    loadSpec();
+  }, [selectedSampleId, actor]);
 
   // Page-level state (not per-row)
   const [pharmacopoeiaStandard, setPharmacopoeiaStandard] = useState(
@@ -138,9 +176,7 @@ export function TestSpecification({
   );
   const [secondaryRefBatchId, setSecondaryRefBatchId] = useState("");
   const [qaNotes, setQaNotes] = useState("");
-  const [leadAnalyst, setLeadAnalyst] = useState(
-    existingSpecs?.[0]?.assignedAnalyst || "",
-  );
+  const [leadAnalyst, setLeadAnalyst] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const updateRow = (idx: number, key: keyof TestSpecRow, value: string) => {
@@ -226,6 +262,28 @@ export function TestSpecification({
     });
   };
 
+  const handleReject = async () => {
+    if (!selectedSampleId) return;
+    const rejectComment = prompt("Please enter a reason for rejection:");
+    if (!rejectComment) return;
+    setSubmitting(true);
+    try {
+      const idx = SAMPLE_INTAKES.findIndex(
+        (s) => s.sampleId === selectedSampleId,
+      );
+      if (idx !== -1)
+        SAMPLE_INTAKES[idx] = {
+          ...SAMPLE_INTAKES[idx],
+          status: "Registration",
+        };
+      toast.success("Returned to Registration for revision.");
+      navigate({ to: "/registration" });
+    } catch (_e) {
+      toast.error("Failed to reject. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
   // ─── Sample Selection Screen ────────────────────────────────────────────────
   if (!sample) {
     return (
@@ -359,6 +417,17 @@ export function TestSpecification({
                 onClick={() => navigate({ to: "/" })}
               >
                 Discard Changes
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                data-ocid="testspec.reject.button"
+                onClick={handleReject}
+                disabled={submitting}
+                className="border-red-300 text-red-600 hover:bg-red-50 gap-1.5"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                Reject
               </Button>
               <Button
                 size="sm"
@@ -802,6 +871,17 @@ export function TestSpecification({
           </Button>
 
           {/* Right: confirm */}
+          <Button
+            variant="outline"
+            size="sm"
+            data-ocid="testspec.footer.reject.button"
+            onClick={handleReject}
+            disabled={submitting}
+            className="border-red-300 text-red-600 hover:bg-red-50 gap-1.5 text-xs"
+          >
+            <XCircle className="h-3 w-3" />
+            Reject
+          </Button>
           <Button
             size="sm"
             data-ocid="testspec.confirm_button"

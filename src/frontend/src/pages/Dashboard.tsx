@@ -1,6 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
@@ -24,7 +30,7 @@ import {
   Wrench,
   Zap,
 } from "lucide-react";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -161,6 +167,32 @@ export function Dashboard() {
   const navigate = useNavigate();
   const { pendingTaskCount, tasks } = useRole();
 
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalStat, setModalStat] = useState("");
+  const openStatModal = (stat: string) => {
+    setModalStat(stat);
+    setModalOpen(true);
+  };
+  const getModalSamples = () => {
+    if (modalStat === "total") return SAMPLE_INTAKES;
+    if (modalStat === "inAnalysis")
+      return SAMPLE_INTAKES.filter((s) => s.status === "Analysis");
+    if (modalStat === "onHold")
+      return SAMPLE_INTAKES.filter((s) => s.status === "OnHold");
+    if (modalStat === "pending")
+      return SAMPLE_INTAKES.filter((s) => s.status !== "COA");
+    if (modalStat === "coa")
+      return SAMPLE_INTAKES.filter((s) => s.status === "COA");
+    return SAMPLE_INTAKES;
+  };
+  const MODAL_TITLES: Record<string, string> = {
+    total: "All Samples",
+    inAnalysis: "In Analysis",
+    onHold: "On Hold",
+    pending: "Pending Samples",
+    coa: "COA Issued",
+  };
+
   // Stats
   const totalSamples = SAMPLE_INTAKES.length;
   const inAnalysis = SAMPLE_INTAKES.filter(
@@ -235,8 +267,11 @@ export function Dashboard() {
               style={{
                 boxShadow:
                   "0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04)",
+                cursor: "pointer",
               }}
               data-ocid="dashboard.samples_today.card"
+              onClick={() => openStatModal("total")}
+              onKeyDown={(e) => e.key === "Enter" && openStatModal("total")}
             >
               <div>
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">
@@ -261,8 +296,11 @@ export function Dashboard() {
               style={{
                 boxShadow:
                   "0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04)",
+                cursor: "pointer",
               }}
               data-ocid="dashboard.pending_tasks.card"
+              onClick={() => openStatModal("pending")}
+              onKeyDown={(e) => e.key === "Enter" && openStatModal("pending")}
             >
               <div>
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">
@@ -288,8 +326,13 @@ export function Dashboard() {
               style={{
                 boxShadow:
                   "0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04)",
+                cursor: "pointer",
               }}
               data-ocid="dashboard.in_analysis.card"
+              onClick={() => openStatModal("inAnalysis")}
+              onKeyDown={(e) =>
+                e.key === "Enter" && openStatModal("inAnalysis")
+              }
             >
               <div>
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">
@@ -313,8 +356,11 @@ export function Dashboard() {
               style={{
                 boxShadow:
                   "0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04)",
+                cursor: "pointer",
               }}
               data-ocid="dashboard.on_hold.card"
+              onClick={() => openStatModal("onHold")}
+              onKeyDown={(e) => e.key === "Enter" && openStatModal("onHold")}
             >
               <div>
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">
@@ -1013,6 +1059,96 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Stat Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent
+          className="max-w-5xl w-[90vw] max-h-[85vh] overflow-hidden flex flex-col"
+          data-ocid="dashboard.stat.modal"
+        >
+          <DialogHeader>
+            <DialogTitle>{MODAL_TITLES[modalStat] ?? "Samples"}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                    Sample ID
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                    Customer
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                    Type
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                    Status
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                    Date
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {getModalSamples()
+                  .slice(0, 50)
+                  .map((s, i) => (
+                    <tr
+                      key={s.sampleId}
+                      className="border-b border-border/50 hover:bg-muted/20"
+                      data-ocid={`dashboard.modal.item.${i + 1}`}
+                    >
+                      <td className="px-3 py-2 font-mono text-primary font-semibold">
+                        {s.sampleId}
+                      </td>
+                      <td className="px-3 py-2">{s.customerName}</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {s.sampleType}
+                      </td>
+                      <td className="px-3 py-2">
+                        <StatusBadge status={s.status} />
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {s.dateOfReceipt}
+                      </td>
+                      <td className="px-3 py-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] px-2"
+                          onClick={() => {
+                            setModalOpen(false);
+                            navigate({
+                              to: "/coa/$sampleId",
+                              params: { sampleId: s.sampleId },
+                            });
+                          }}
+                          data-ocid={`dashboard.modal.view_button.${i + 1}`}
+                        >
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                {getModalSamples().length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="py-10 text-center text-muted-foreground"
+                    >
+                      No samples found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

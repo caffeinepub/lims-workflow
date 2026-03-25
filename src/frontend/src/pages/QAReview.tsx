@@ -14,7 +14,7 @@ import {
   Printer,
   Shield,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useRole } from "../contexts/RoleContext";
@@ -32,43 +32,7 @@ interface QAReviewProps {
   sampleId?: string;
 }
 
-const COA_TEST_PARAMS = [
-  {
-    parameter: "Appearance",
-    specification: "Clear, colorless liquid",
-    result: "Complies",
-    method: "Visual",
-    status: "PASS",
-  },
-  {
-    parameter: "Assay (HPLC)",
-    specification: "98.0% - 102.0%",
-    result: "99.85%",
-    method: "SOP-LAB-042",
-    status: "PASS",
-  },
-  {
-    parameter: "pH Value",
-    specification: "5.5 - 7.5",
-    result: "6.2",
-    method: "USP <791>",
-    status: "PASS",
-  },
-  {
-    parameter: "Specific Gravity",
-    specification: "1.012 - 1.018",
-    result: "1.015",
-    method: "USP <841>",
-    status: "PASS",
-  },
-  {
-    parameter: "Microbial Limit",
-    specification: "< 100 CFU/mL",
-    result: "Absent",
-    method: "USP <61>",
-    status: "PASS",
-  },
-];
+// COA_TEST_PARAMS removed — data loaded dynamically from backend
 
 export function QAReview({ sampleId: propSampleId }: QAReviewProps) {
   const navigate = useNavigate();
@@ -78,7 +42,47 @@ export function QAReview({ sampleId: propSampleId }: QAReviewProps) {
   const [selectedSampleId, setSelectedSampleId] = useState(propSampleId || "");
   const sample = selectedSampleId ? getSampleById(selectedSampleId) : null;
   const qaSamples = SAMPLE_INTAKES.filter((s) => s.status === "QAReview");
-  const results = ANALYSIS_RESULTS[selectedSampleId] || [];
+  const [results, setResults] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!selectedSampleId) {
+      setResults([]);
+      return;
+    }
+    const loadData = async () => {
+      if (actor) {
+        try {
+          const backendResults = await (actor as any).getAnalysisResult(
+            selectedSampleId,
+          );
+          if (backendResults && backendResults.length > 0) {
+            const mapped = backendResults.map((r: any, i: number) => ({
+              id: `ar-${i}`,
+              parameter: r.parameter,
+              acceptanceCriteria: "",
+              observedValue: r.observedValue,
+              unit: r.unit,
+              verdict:
+                r.verdict?.__kind__ === "pass"
+                  ? "PASS"
+                  : r.verdict?.__kind__ === "fail"
+                    ? "FAIL"
+                    : "OOS",
+              testDateStart: "",
+              testDateEnd: "",
+              remarks: r.remark || "",
+            }));
+            setResults(mapped);
+            return;
+          }
+        } catch (err) {
+          console.warn("getAnalysisResult failed in QAReview:", err);
+        }
+      }
+      setResults([]);
+    };
+    loadData();
+  }, [selectedSampleId, actor]);
 
   const [approvalComments, setApprovalComments] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -372,55 +376,66 @@ export function QAReview({ sampleId: propSampleId }: QAReviewProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {(results.length > 0
-                        ? results.map((r) => ({
-                            parameter: r.parameter,
-                            specification: r.acceptanceCriteria,
-                            result: r.observedValue || "—",
-                            method: "USP/BP",
-                            status: r.verdict || "Pending",
-                          }))
-                        : COA_TEST_PARAMS
-                      ).map((row, idx) => (
-                        <tr
-                          key={row.parameter}
-                          className={`border-b border-gray-100 transition-colors ${checkedRows[row.parameter] ? "bg-blue-50/40" : ""}`}
-                        >
-                          <td className="px-3 py-2">
-                            <Checkbox
-                              checked={!!checkedRows[row.parameter]}
-                              onCheckedChange={() => toggleRow(row.parameter)}
-                              data-ocid={`qa-review.test-param.checkbox.${idx + 1}`}
-                              aria-label={`Select ${row.parameter}`}
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-gray-800">
-                            {row.parameter}
-                          </td>
-                          <td className="px-3 py-2 text-gray-500">
-                            {row.specification}
-                          </td>
-                          <td className="px-3 py-2 font-semibold text-gray-800">
-                            {row.result}
-                          </td>
-                          <td className="px-3 py-2 text-gray-500 italic">
-                            {row.method}
-                          </td>
-                          <td className="px-3 py-2">
-                            <span
-                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold border ${
-                                row.status === "PASS"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                  : row.status === "FAIL"
-                                    ? "bg-red-50 text-red-700 border-red-200"
-                                    : "bg-gray-50 text-gray-500 border-gray-200"
-                              }`}
-                            >
-                              {row.status}
-                            </span>
+                      {results.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="px-3 py-6 text-center text-xs text-gray-500 italic"
+                          >
+                            No analysis results available. Complete the Analysis
+                            stage first.
                           </td>
                         </tr>
-                      ))}
+                      )}
+                      {results.map((r, idx) => {
+                        const row = {
+                          parameter: r.parameter,
+                          specification: r.acceptanceCriteria,
+                          result: r.observedValue || "—",
+                          method: "USP/BP",
+                          status: r.verdict || "Pending",
+                        };
+                        return (
+                          <tr
+                            key={row.parameter}
+                            className={`border-b border-gray-100 transition-colors ${checkedRows[row.parameter] ? "bg-blue-50/40" : ""}`}
+                          >
+                            <td className="px-3 py-2">
+                              <Checkbox
+                                checked={!!checkedRows[row.parameter]}
+                                onCheckedChange={() => toggleRow(row.parameter)}
+                                data-ocid={`qa-review.test-param.checkbox.${idx + 1}`}
+                                aria-label={`Select ${row.parameter}`}
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-gray-800">
+                              {row.parameter}
+                            </td>
+                            <td className="px-3 py-2 text-gray-500">
+                              {row.specification}
+                            </td>
+                            <td className="px-3 py-2 font-semibold text-gray-800">
+                              {row.result}
+                            </td>
+                            <td className="px-3 py-2 text-gray-500 italic">
+                              {row.method}
+                            </td>
+                            <td className="px-3 py-2">
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold border ${
+                                  row.status === "PASS"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : row.status === "FAIL"
+                                      ? "bg-red-50 text-red-700 border-red-200"
+                                      : "bg-gray-50 text-gray-500 border-gray-200"
+                                }`}
+                              >
+                                {row.status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

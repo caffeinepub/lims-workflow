@@ -17,6 +17,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { EligibilityCheck } from "./pages/EligibilityCheck";
 import { MyTasks } from "./pages/MyTasks";
 import { Notifications } from "./pages/Notifications";
+import { PagePermissions } from "./pages/PagePermissions";
 import { QAReview } from "./pages/QAReview";
 import { Reports } from "./pages/Reports";
 import { SICReview } from "./pages/SICReview";
@@ -166,6 +167,11 @@ const calculatorRoute = createRoute({
   path: "/calculator",
   component: Calculator,
 });
+const pagePermissionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin/permissions",
+  component: PagePermissions,
+});
 const apiDocsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/api-docs",
@@ -193,6 +199,7 @@ const routeTree = rootRoute.addChildren([
   notificationsRoute,
   reportsRoute,
   adminRoute,
+  pagePermissionsRoute,
   testMastersRoute,
   calculatorRoute,
   apiDocsRoute,

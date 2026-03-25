@@ -152,12 +152,51 @@ export function Analysis({ sampleId: propSampleId }: AnalysisProps) {
 
   // Re-populate rows whenever the selected sample changes
   useEffect(() => {
-    if (selectedSampleId) {
+    if (!selectedSampleId) return;
+    const loadResults = async () => {
+      // Try backend first
+      if (actor) {
+        try {
+          const backendResults = await (actor as any).getAnalysisResult(
+            selectedSampleId,
+          );
+          if (backendResults && backendResults.length > 0) {
+            const mapped: AnalysisResultRow[] = backendResults.map(
+              (r: any, i: number) => ({
+                id: `ar-backend-${i}`,
+                parameter: r.parameter,
+                acceptanceCriteria: "",
+                observedValue: r.observedValue,
+                unit: r.unit,
+                verdict:
+                  r.verdict?.__kind__ === "pass"
+                    ? "PASS"
+                    : r.verdict?.__kind__ === "fail"
+                      ? "FAIL"
+                      : r.verdict?.__kind__ === "oos"
+                        ? "OOS"
+                        : ("" as const),
+                testDateStart: new Date().toISOString().split("T")[0],
+                testDateEnd: "",
+                remarks: r.remark || "",
+              }),
+            );
+            setRows(mapped);
+            ANALYSIS_RESULTS[selectedSampleId] = mapped;
+            setAnalystRemarks("");
+            setOverallResult("");
+            return;
+          }
+        } catch (err) {
+          console.warn("getAnalysisResult failed:", err);
+        }
+      }
       setRows(buildRows(selectedSampleId));
       setAnalystRemarks("");
       setOverallResult("");
-    }
-  }, [selectedSampleId]);
+    };
+    loadResults();
+  }, [selectedSampleId, actor]);
 
   const computedOverall = rows.some(
     (r) => r.verdict === "FAIL" || r.verdict === "OOS",
@@ -273,6 +312,28 @@ export function Analysis({ sampleId: propSampleId }: AnalysisProps) {
     });
   };
 
+  const handleReject = async () => {
+    if (!selectedSampleId) return;
+    const rejectComment = prompt("Please enter a reason for rejection:");
+    if (!rejectComment) return;
+    setSubmitting(true);
+    try {
+      const idx = SAMPLE_INTAKES.findIndex(
+        (s) => s.sampleId === selectedSampleId,
+      );
+      if (idx !== -1)
+        SAMPLE_INTAKES[idx] = { ...SAMPLE_INTAKES[idx], status: "TestSpec" };
+      toast.success("Returned to Test Specification for revision.");
+      navigate({
+        to: "/test-specification/$sampleId",
+        params: { sampleId: selectedSampleId },
+      });
+    } catch (_e) {
+      toast.error("Failed to reject. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
@@ -899,6 +960,17 @@ export function Analysis({ sampleId: propSampleId }: AnalysisProps) {
                       <Save className="h-3.5 w-3.5" />
                     )}
                     Save Progress
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReject}
+                    disabled={submitting}
+                    className="gap-1.5 text-xs h-8 border-red-300 text-red-600 hover:bg-red-50"
+                    data-ocid="analysis.reject.button"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    Reject
                   </Button>
                   <Button
                     size="sm"

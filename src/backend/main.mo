@@ -192,6 +192,7 @@ actor {
 
   let users = Map.empty<Principal, User>();
   var nextClientId = 0;
+  var regSerial = 0;
 
   var testMasters = Map.empty<TestMasterID, TestMaster>();
 
@@ -585,6 +586,20 @@ actor {
 
   public query ({ caller }) func getCOABySampleId(sampleId : SampleID) : async ?COAValue {
     coas.get(sampleId);
+  };
+
+
+  // ─── Registration Number Generation ───────────────────────────────────────
+
+  public shared ({ caller }) func generateRegistrationNumber(year : Nat, month : Nat) : async Text {
+    regSerial += 1;
+    let yy = year.toText();
+    let mm = if (month < 10) { "0" # month.toText() } else { month.toText() };
+    let serial = if (regSerial < 10) { "000" # regSerial.toText() }
+                 else if (regSerial < 100) { "00" # regSerial.toText() }
+                 else if (regSerial < 1000) { "0" # regSerial.toText() }
+                 else { regSerial.toText() };
+    "DKR" # yy # mm # serial;
   };
 
 };

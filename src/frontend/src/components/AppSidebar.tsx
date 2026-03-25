@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Microscope,
   Settings,
+  Shield,
   ShieldCheck,
   TestTube,
 } from "lucide-react";
@@ -159,6 +160,12 @@ export function AppSidebar() {
       label: "Admin Panel",
       path: "/admin",
       icon: <Settings className="h-4 w-4" />,
+      roles: ["admin"],
+    },
+    {
+      label: "Page Permissions",
+      path: "/admin/permissions",
+      icon: <Shield className="h-4 w-4" />,
       roles: ["admin"],
     },
     {
